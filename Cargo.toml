@@ -1,0 +1,15 @@
+[package]
+name = "axum-server-starter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+axum = "0.5.16"
+http-body = "0.4.5"
+hyper = { version = "0.14.20", features = ["server"] }
+tower = "0.4.13"
+tower-http = { version = "0.3.4", features = ["catch-panic"] }
+
+[dev-dependencies]
+tokio = { version = "1.21.2", features = ["full"] }
