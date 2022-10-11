@@ -15,23 +15,11 @@ pub type BoxPreparedEffect =
     Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>, Box<dyn Error>>>>>;
 
 pub trait PreparedEffect {
-    fn apply_effect(
-        &mut self,
-        server: server::Builder<AddrIncoming>,
-        router: Router,
-    ) -> (
-        server::Builder<AddrIncoming>,
-        Router,
-        Option<Pin<Box<dyn Future<Output = ()>>>>,
-    ) {
-        let ExtensionManage(router) =
-            ExtensionManage(router).pipe(|extension| self.add_extension(extension));
-
-        (
-            server.pipe(|server| self.config_serve(server)),
-            router.pipe(|router| self.add_router(router)),
-            self.set_graceful(),
-        )
+    fn apply_extension(&mut self, router: Router) -> Router {
+        router
+            .pipe(ExtensionManage)
+            .pipe(|extension| self.add_extension(extension))
+            .pipe(|ExtensionManage(router)| router)
     }
 
     fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {

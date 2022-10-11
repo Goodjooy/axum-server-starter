@@ -1,12 +1,6 @@
 mod error;
 use std::{
-    any::type_name,
-    convert::Infallible,
-    error::Error,
-    future::{Future, IntoFuture},
-    marker::Send,
-    pin::Pin,
-    sync::Arc,
+    any::type_name, convert::Infallible, error::Error, future::IntoFuture, marker::Send, sync::Arc,
 };
 
 use axum::{
@@ -15,11 +9,13 @@ use axum::{
     Router,
 };
 
+use futures::{stream::iter, StreamExt, TryFutureExt, TryStreamExt};
 use http_body::combinators::UnsyncBoxBody;
 use hyper::{
     server::{self, conn::AddrIncoming},
     Body, Request, Response,
 };
+use tap::Pipe;
 use tower::{
     layer::util::{Identity, Stack},
     Layer, Service, ServiceBuilder,
@@ -103,35 +99,48 @@ impl<C, L> ServerPrepare<C, L> {
             > + 'static,
         <<L as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
     {
-        let mut router = Router::new();
-        let mut server_builder =
-            server::Server::bind(&ServeBind::get_address(&*self.config).into());
-        let mut graceful = Option::<Pin<Box<dyn Future<Output = ()>>>>::None;
+        let mut effects = iter(self.prepares)
+            .then(|(name, fut)| fut.map_err(move |err| PrepareError::new(name, err)))
+            .try_collect::<Vec<_>>()
+            .await?;
 
-        // apply all effect
-        for (name, effect) in self.prepares {
-            let mut effect = effect.await.map_err(|e| PrepareError::new(name, e))?;
+        let router = Router::new()
+            // apply prepare effect on router
+            .pipe(|router| {
+                effects
+                    .iter_mut()
+                    .fold(router, |router, effect| effect.add_router(router))
+            })
+            // apply prepare extension
+            .pipe(|router| {
+                effects
+                    .iter_mut()
+                    .fold(router, |router, effect| effect.apply_extension(router))
+            })
+            // adding middleware
+            .pipe(|router| router.layer(self.middleware));
 
-            let (r, s, option_graceful) = effect.apply_effect(server_builder, router);
-
-            server_builder = r;
-            router = s;
-
-            if let Some(fut) = option_graceful {
-                graceful = Some(fut)
+        let graceful = effects.iter_mut().fold(None, |graceful, effect| {
+            match (graceful, effect.set_graceful()) {
+                (None, grace @ Some(_)) | (grace @ Some(_), _) => grace,
+                (None, None) => None,
             }
-        }
+        });
 
-        let router = router.layer(self.middleware);
+        let server = server::Server::bind(&ServeBind::get_address(&*self.config).into())
+            // apply effect config server
+            .pipe(|server| {
+                effects
+                    .iter_mut()
+                    .fold(server, |server, effect| effect.config_serve(server))
+            })
+            // apply configure config server
+            .pipe(|server| self.config.effect_server(server))
+            .serve(router.into_make_service());
 
-        server_builder = self.config.effect_server(server_builder);
-
-        let server = server_builder.serve(router.into_make_service());
-
-        Ok(if let Some(fut) = graceful {
-            ServerReady::Graceful(server.with_graceful_shutdown(fut))
-        } else {
-            ServerReady::Server(server)
+        Ok(match graceful {
+            Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut)),
+            None => ServerReady::Server(server),
         })
     }
 }
