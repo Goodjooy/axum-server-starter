@@ -11,8 +11,8 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_server_starter::{
-    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind, ServerEffect,
-    ServerPrepare,
+    BoxPreparedEffect, ExtensionManage, FromConfig, Prepare, PreparedEffect, Provider, ServeBind,
+    ServerEffect, ServerPrepare,
 };
 use hyper::{server::Builder, Response};
 use tokio::sync::oneshot;
@@ -22,6 +22,7 @@ async fn main() {
     ServerPrepare::with_config(Config)
         .append(CtrlCStop)
         .append_fn(echo_handler)
+        .append_fn(show_address)
         .append_fn(print_init)
         .with_global_middleware(CatchPanicLayer::custom(serve_panic))
         .prepare_start()
@@ -38,6 +39,20 @@ fn serve_panic(_: Box<dyn Any + Send + 'static>) -> Response<BoxBody> {
 
 struct Config;
 
+impl<'r> Provider<'r, SocketAddr> for Config {
+    fn provide(&'r self) -> SocketAddr {
+        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080))
+    }
+}
+
+struct Addr(SocketAddr);
+
+impl<'r, C: Provider<'r, SocketAddr>> FromConfig<'r, C> for Addr {
+    fn from_config(config: &'r C) -> Self {
+        Self(config.provide())
+    }
+}
+
 impl ServeBind for Config {
     type Address = SocketAddr;
 
@@ -49,6 +64,12 @@ impl ServeBind for Config {
 impl ServerEffect for Config {
     fn effect_server<I>(&self, server: Builder<I>) -> Builder<I> {
         server
+    }
+}
+
+fn show_address(Addr(addr): Addr) -> impl Future<Output = ()> {
+    async move {
+        println!("server serve at http://{:?}", addr);
     }
 }
 
