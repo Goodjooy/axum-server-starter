@@ -18,6 +18,7 @@ macro_rules! group_provider {
                 C: Provider<'r,$args>,
             )*
         {
+            #[allow(clippy::unused_unit)]
             fn provide(&'r self) -> ($($args,)*) {
                 (
                     $(

@@ -12,9 +12,10 @@ impl<G: IntoFuture<Output = hyper::Result<()>>>
     ServerReady<AddrIncoming, IntoMakeService<Router<Body>>, G>
 {
     pub async fn launch(self) -> hyper::Result<()> {
-        Ok(match self {
+        match self {
             ServerReady::Server(s) => s.await?,
             ServerReady::Graceful(g) => g.await?,
-        })
+        };
+        Ok(())
     }
 }

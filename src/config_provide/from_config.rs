@@ -11,10 +11,13 @@ macro_rules! group_from_config {
         )*
         {
             #[allow(unused_variables)]
+            #[allow(clippy::unused_unit)]
             fn from_config(config: &'r Config) -> Self {
-                ($(
-                    <$args as FromConfig<'r,Config>>::from_config(config)
-                ,)*)
+                (
+                    $(
+                        <$args as FromConfig<'r,Config>>::from_config(config)
+                    ,)
+                *)
             }
         }
     };
