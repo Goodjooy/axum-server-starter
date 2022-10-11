@@ -12,7 +12,7 @@ use std::{
 use axum::{
     body::Bytes,
     routing::{IntoMakeService, Route},
-    Extension, Router,
+    Router,
 };
 
 use http_body::combinators::UnsyncBoxBody;
@@ -25,26 +25,15 @@ use tower::{
     Layer, Service, ServiceBuilder,
 };
 
-use crate::server_ready::ServerReady;
+use crate::{fn_prepare, server_ready::ServerReady, PrepareHandler};
 
 use self::error::PrepareError;
 pub use self::{
-    pre_initial::{BoxPreparedEffect, Prepare, PreparedEffect},
+    pre_initial::{BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect},
     serve_bind::{ServeBind, ServerEffect},
 };
 mod pre_initial;
 mod serve_bind;
-
-pub struct ExtensionManage(Router<Body>);
-
-impl ExtensionManage {
-    pub fn add_extension<S>(self, extension: S) -> Self
-    where
-        S: Clone + Send + Sync + 'static,
-    {
-        Self(self.0.layer(Extension(extension)))
-    }
-}
 
 /// type for prepare starting
 pub struct ServerPrepare<C, L> {
@@ -75,6 +64,13 @@ impl<C, L> ServerPrepare<C, L> {
         let task = prepare.prepare(Arc::clone(&self.config));
         self.prepares.push((type_name::<P>(), task));
         self
+    }
+
+    pub fn append_fn<F, Args>(self, func: F) -> Self
+    where
+        F: PrepareHandler<Args, C>,
+    {
+        self.append(fn_prepare(func))
     }
 
     pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>> {
@@ -115,15 +111,15 @@ impl<C, L> ServerPrepare<C, L> {
         // apply all effect
         for (name, effect) in self.prepares {
             let mut effect = effect.await.map_err(|e| PrepareError::new(name, e))?;
-            if let Some(fut) = effect.set_graceful() {
+
+            let (r, s, option_graceful) = effect.apply_effect(server_builder, router);
+
+            server_builder = r;
+            router = s;
+
+            if let Some(fut) = option_graceful {
                 graceful = Some(fut)
             }
-            server_builder = effect.config_serve(server_builder);
-            router = effect.add_router(router);
-
-            let extension = ExtensionManage(router);
-            let extension = effect.add_extension(extension);
-            router = extension.0;
         }
 
         let router = router.layer(self.middleware);

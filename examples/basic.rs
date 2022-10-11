@@ -12,7 +12,7 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_server_starter::{
-    fn_prepare, BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind,
+    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind,
     ServerEffect, ServerPrepare,
 };
 use hyper::{server::Builder, Response};
@@ -23,7 +23,7 @@ async fn main() {
     ServerPrepare::with_config(Config)
         .append(CtrlCStop)
         .append(Echo)
-        .append(fn_prepare(print_init))
+        .append_fn(print_init)
         .with_global_middleware(CatchPanicLayer::custom(serve_panic))
         .prepare_start()
         .await
