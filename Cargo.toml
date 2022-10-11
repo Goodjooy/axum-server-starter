@@ -9,6 +9,7 @@ members = ["./codegen/derive_config_provider"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 axum = "0.5.16"
+derive_config_provider = { version = "0.1.0", path = "codegen/derive_config_provider" }
 futures = "0.3.24"
 http-body = "0.4.5"
 hyper = { version = "0.14.20", features = ["server"] }
