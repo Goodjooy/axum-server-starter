@@ -5,17 +5,17 @@ use hyper::server::{self, conn::AddrIncoming};
 
 use super::ExtensionManage;
 
-pub trait PreInitial {
+pub trait Prepare {
     type Config;
 
-    fn init_this<'r>(config: Arc<Self::Config>) -> InitialedEffect;
+    fn prepare(&self, config: Arc<Self::Config>) -> BoxPreparedEffect;
 }
 
-pub type InitialedEffect =
-    Pin<Box<dyn Future<Output = Result<Box<dyn PreEffect>, Box<dyn Error>>>>>;
+pub type BoxPreparedEffect =
+    Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>, Box<dyn Error>>>>>;
 
-pub trait PreEffect {
-    fn adding_extract(&mut self, extension: ExtensionManage) -> ExtensionManage {
+pub trait PreparedEffect {
+    fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {
         extension
     }
 
@@ -23,11 +23,13 @@ pub trait PreEffect {
         None
     }
 
-    fn change_serve(&self, server: server::Builder<AddrIncoming>) -> server::Builder<AddrIncoming> {
+    fn config_serve(&self, server: server::Builder<AddrIncoming>) -> server::Builder<AddrIncoming> {
         server
     }
 
-    fn adding_router(&mut self, router: Router) -> Router {
+    fn add_router(&mut self, router: Router) -> Router {
         router
     }
 }
+
+impl PreparedEffect for () {}

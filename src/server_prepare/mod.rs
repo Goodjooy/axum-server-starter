@@ -1,6 +1,8 @@
+mod error;
 use std::{
+    any::type_name,
     convert::Infallible,
-    error::{self, Error},
+    error::Error,
     future::{Future, IntoFuture},
     marker::Send,
     pin::Pin,
@@ -25,8 +27,9 @@ use tower::{
 
 use crate::server_ready::ServerReady;
 
+use self::error::PrepareError;
 pub use self::{
-    pre_initial::{InitialedEffect, PreEffect, PreInitial},
+    pre_initial::{BoxPreparedEffect, Prepare, PreparedEffect},
     serve_bind::{ServeBind, ServerEffect},
 };
 mod pre_initial;
@@ -46,7 +49,7 @@ impl ExtensionManage {
 /// type for prepare starting
 pub struct ServerPrepare<C, L> {
     config: Arc<C>,
-    prepares: Vec<InitialedEffect>,
+    prepares: Vec<(&'static str, BoxPreparedEffect)>,
 
     middleware: ServiceBuilder<L>,
 }
@@ -65,12 +68,12 @@ impl<C> ServerPrepare<C, Identity> {
 }
 
 impl<C, L> ServerPrepare<C, L> {
-    pub fn append<P>(mut self, _: P) -> Self
+    pub fn append<P>(mut self, prepare: P) -> Self
     where
-        P: PreInitial<Config = C>,
+        P: Prepare<Config = C>,
     {
-        let task = P::init_this(Arc::clone(&self.config));
-        self.prepares.push(task);
+        let task = prepare.prepare(Arc::clone(&self.config));
+        self.prepares.push((type_name::<P>(), task));
         self
     }
 
@@ -90,7 +93,7 @@ impl<C, L> ServerPrepare<C, L> {
             IntoMakeService<Router<Body>>,
             impl IntoFuture<Output = Result<(), hyper::Error>>,
         >,
-        Box<dyn error::Error>,
+        Box<dyn Error>,
     >
     where
         C: ServeBind + ServerEffect,
@@ -110,16 +113,16 @@ impl<C, L> ServerPrepare<C, L> {
         let mut graceful = Option::<Pin<Box<dyn Future<Output = ()>>>>::None;
 
         // apply all effect
-        for effect in self.prepares {
-            let mut effect = effect.await?;
+        for (name, effect) in self.prepares {
+            let mut effect = effect.await.map_err(|e| PrepareError::new(name, e))?;
             if let Some(fut) = effect.set_graceful() {
                 graceful = Some(fut)
             }
-            server_builder = effect.change_serve(server_builder);
-            router = effect.adding_router(router);
+            server_builder = effect.config_serve(server_builder);
+            router = effect.add_router(router);
 
             let extension = ExtensionManage(router);
-            let extension = effect.adding_extract(extension);
+            let extension = effect.add_extension(extension);
             router = extension.0;
         }
 
