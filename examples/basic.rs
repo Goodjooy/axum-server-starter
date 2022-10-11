@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    convert::Infallible,
     future::Future,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     pin::Pin,
@@ -11,7 +12,8 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_server_starter::{
-    ExtensionManage, BoxPreparedEffect, PreparedEffect, Prepare, ServeBind, ServerEffect, ServerPrepare,
+    fn_prepare, BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind,
+    ServerEffect, ServerPrepare,
 };
 use hyper::{server::Builder, Response};
 use tokio::sync::oneshot;
@@ -21,6 +23,7 @@ async fn main() {
     ServerPrepare::with_config(Config)
         .append(CtrlCStop)
         .append(Echo)
+        .append(fn_prepare(print_init))
         .with_global_middleware(CatchPanicLayer::custom(serve_panic))
         .prepare_start()
         .await
@@ -52,10 +55,8 @@ impl ServerEffect for Config {
 
 struct Echo;
 
-impl Prepare for Echo {
-    type Config = Config;
-
-    fn prepare(&self, _: Arc<Self::Config>) -> BoxPreparedEffect {
+impl Prepare<Config> for Echo {
+    fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
         Box::pin(async { Ok(Box::new(EchoEffect) as Box<dyn PreparedEffect>) })
     }
 }
@@ -82,11 +83,15 @@ impl PreparedEffect for EchoEffect {
     }
 }
 
+async fn print_init() -> Result<(), Infallible> {
+    println!("Initial");
+    Ok(())
+}
+
 struct CtrlCStop;
 
-impl Prepare for CtrlCStop {
-    type Config = Config;
-    fn prepare(&self, _: Arc<Self::Config>) -> BoxPreparedEffect {
+impl Prepare<Config> for CtrlCStop {
+    fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
         Box::pin(async {
             let (tx, rx) = oneshot::channel();
             tokio::spawn(async move {
