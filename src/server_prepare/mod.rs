@@ -70,7 +70,7 @@ impl<C> ServerPrepare<C, Identity> {
 impl<C, L> ServerPrepare<C, L> {
     pub fn append<P>(mut self, prepare: P) -> Self
     where
-        P: Prepare<Config = C>,
+        P: Prepare<C>,
     {
         let task = prepare.prepare(Arc::clone(&self.config));
         self.prepares.push((type_name::<P>(), task));

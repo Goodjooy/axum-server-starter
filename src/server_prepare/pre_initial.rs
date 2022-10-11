@@ -5,10 +5,9 @@ use hyper::server::{self, conn::AddrIncoming};
 
 use super::ExtensionManage;
 
-pub trait Prepare {
-    type Config;
+pub trait Prepare<Config> {
 
-    fn prepare(&self, config: Arc<Self::Config>) -> BoxPreparedEffect;
+    fn prepare(self, config: Arc<Config>) -> BoxPreparedEffect;
 }
 
 pub type BoxPreparedEffect =

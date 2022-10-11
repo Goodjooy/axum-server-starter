@@ -9,6 +9,7 @@ axum = "0.5.16"
 futures = "0.3.24"
 http-body = "0.4.5"
 hyper = { version = "0.14.20", features = ["server"] }
+tap = "1.0.1"
 thiserror = "1.0.37"
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["catch-panic"] }
