@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    convert::Infallible,
     future::Future,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     pin::Pin,
@@ -12,8 +11,8 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_server_starter::{
-    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind,
-    ServerEffect, ServerPrepare,
+    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, ServeBind, ServerEffect,
+    ServerPrepare,
 };
 use hyper::{server::Builder, Response};
 use tokio::sync::oneshot;
@@ -22,7 +21,7 @@ use tower_http::catch_panic::CatchPanicLayer;
 async fn main() {
     ServerPrepare::with_config(Config)
         .append(CtrlCStop)
-        .append(Echo)
+        .append_fn(echo_handler)
         .append_fn(print_init)
         .with_global_middleware(CatchPanicLayer::custom(serve_panic))
         .prepare_start()
@@ -53,12 +52,8 @@ impl ServerEffect for Config {
     }
 }
 
-struct Echo;
-
-impl Prepare<Config> for Echo {
-    fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
-        Box::pin(async { Ok(Box::new(EchoEffect) as Box<dyn PreparedEffect>) })
-    }
+async fn echo_handler() -> EchoEffect {
+    EchoEffect
 }
 
 struct EchoEffect;
@@ -83,9 +78,8 @@ impl PreparedEffect for EchoEffect {
     }
 }
 
-async fn print_init() -> Result<(), Infallible> {
+async fn print_init() {
     println!("Initial");
-    Ok(())
 }
 
 struct CtrlCStop;

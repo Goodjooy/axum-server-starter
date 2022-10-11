@@ -1,14 +1,13 @@
 use std::{error, marker::PhantomData, sync::Arc};
 
-use futures::{Future, TryFutureExt};
+use futures::{Future, FutureExt, TryFutureExt};
 use tap::Pipe;
 
-use crate::{FromConfig, Prepare, PreparedEffect};
+use crate::{into_effect::IntoFallibleEffect, FromConfig, Prepare, PreparedEffect};
 
 pub trait PrepareHandler<Args, C> {
-    type Effect: PreparedEffect + 'static;
-    type Error: std::error::Error + 'static;
-    type Future: Future<Output = Result<Self::Effect, Self::Error>> + 'static;
+    type IntoEffect: IntoFallibleEffect + 'static;
+    type Future: Future<Output = Self::IntoEffect> + 'static;
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
@@ -30,6 +29,7 @@ where
     fn prepare(self, config: Arc<C>) -> crate::BoxPreparedEffect {
         self.0
             .prepare(config)
+            .map(|fut| fut.into_effect())
             .map_ok(|effect| Box::new(effect) as Box<dyn PreparedEffect>)
             .map_err(|err| Box::new(err) as Box<dyn error::Error>)
             .pipe(Box::pin)
@@ -38,27 +38,24 @@ where
 
 macro_rules! fn_prepare_handles {
     ($($args:ident),* $(,)?) => {
-        impl<C, F, Fut, P, E, $($args),*> PrepareHandler<($($args,)*), C> for F
+        impl<Config, Func, Fut, FallibleEffect, $($args),*> PrepareHandler<($($args,)*), Config> for Func
         where
-            F: FnOnce($($args),*) -> Fut + 'static,
-            Fut: Future<Output = Result<P, E>> + 'static,
-            P: PreparedEffect + 'static,
-            E: std::error::Error + 'static,
+            Func: FnOnce($($args),*) -> Fut + 'static,
+            Fut: Future<Output = FallibleEffect> + 'static,
+            FallibleEffect: IntoFallibleEffect + 'static,
             $(
-                $args: for<'r>FromConfig<'r, C>
+                $args: for<'r>FromConfig<'r, Config>
             ),*
         {
-            type Effect = P;
-
-            type Error = E;
+            type IntoEffect = FallibleEffect;
 
             type Future = Fut;
 
             #[allow(unused_variables)]
-            fn prepare(self, config: Arc<C>) -> Self::Future {
+            fn prepare(self, config: Arc<Config>) -> Self::Future {
                 self(
                     $(
-                        <$args as FromConfig<C>>::from_config(&config)
+                        <$args as FromConfig<Config>>::from_config(&config)
                     ),*
                 )
             }
