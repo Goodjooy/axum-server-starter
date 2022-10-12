@@ -36,7 +36,6 @@ impl ProviderNeeds {
     pub fn to_code_gens(&self) -> impl Iterator<Item = CodeGen<'_>> {
         self.provide
             .iter()
-            .map(|f| CodeGen::new_list(&self.ident, f))
-            .flatten()
+            .flat_map(|f| CodeGen::new_list(&self.ident, f))
     }
 }

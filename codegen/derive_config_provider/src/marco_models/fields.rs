@@ -46,7 +46,7 @@ impl ProviderField {
                 Err(darling::Error::unexpected_type("Tuple Struct").with_span(&ident))?;
             }
             Some(ident) => {
-                if ident.to_string() == "_" {
+                if *ident == "_" {
                     skip = true
                 }
             }

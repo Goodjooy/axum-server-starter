@@ -56,7 +56,6 @@ impl Config {
 }
 
 async fn show_my_info(Pwd(pwd): Pwd, Name(name): Name, Id(id): Id) {
-
     println!("my name is {name} pwd is {pwd} id is {id}")
 }
 

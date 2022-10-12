@@ -21,7 +21,7 @@ pub(crate) fn snake_to_upper(src: &str) -> String {
 
 macro_rules! darling_err {
     ($provider:expr) => {
-        match $provider{
+        match $provider {
             Ok(v) => v,
             Err(err) => return err.write_errors().into(),
         }
@@ -29,15 +29,15 @@ macro_rules! darling_err {
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use crate::utils::snake_to_upper;
 
     #[test]
-    fn test()  {
-        assert_eq!("Abc",snake_to_upper("abc"));
-        assert_eq!("AbcCc",snake_to_upper("abc_cc"));
-        assert_eq!("",snake_to_upper("_"));
-        assert_eq!("AccBccDcc",snake_to_upper("acc_bcc_dcc"));
-        assert_eq!("AccBccDcc",snake_to_upper("AccBccDcc"));
+    fn test() {
+        assert_eq!("Abc", snake_to_upper("abc"));
+        assert_eq!("AbcCc", snake_to_upper("abc_cc"));
+        assert_eq!("", snake_to_upper("_"));
+        assert_eq!("AccBccDcc", snake_to_upper("acc_bcc_dcc"));
+        assert_eq!("AccBccDcc", snake_to_upper("AccBccDcc"));
     }
 }
