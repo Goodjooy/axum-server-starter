@@ -19,11 +19,12 @@ use tokio::sync::oneshot;
 use tower_http::catch_panic::CatchPanicLayer;
 #[tokio::main]
 async fn main() {
-    ServerPrepare::with_config(Config)
+    ServerPrepare::with_config(Config::new())
         .append(CtrlCStop)
         .append_fn(echo_handler)
         .append_fn(show_address)
         .append_fn(print_init)
+        .append_fn(show_my_info)
         .with_global_middleware(CatchPanicLayer::custom(serve_panic))
         .prepare_start()
         .await
@@ -37,7 +38,27 @@ fn serve_panic(_: Box<dyn Any + Send + 'static>) -> Response<BoxBody> {
     "Panic".into_response()
 }
 
-struct Config;
+#[derive(Debug, Provider)]
+struct Config {
+    pwd: String,
+    name: String,
+    id: u64,
+}
+
+impl Config {
+    fn new() -> Self {
+        Self {
+            pwd: "Foo".into(),
+            name: "Bar".into(),
+            id: 114514,
+        }
+    }
+}
+
+async fn show_my_info(Pwd(pwd): Pwd, Name(name): Name, Id(id): Id) {
+
+    println!("my name is {name} pwd is {pwd} id is {id}")
+}
 
 impl<'r> Provider<'r, SocketAddr> for Config {
     fn provide(&'r self) -> SocketAddr {
