@@ -6,10 +6,9 @@ pub trait ServeAddress {
     fn get_address(&self) -> Self::Address;
 }
 
-/// change the server configure, this operate can overwrite 
+/// change the server configure, this operate can overwrite
 /// [PrepareEffect](crate::PreparedEffect)
 pub trait ServerEffect {
-    
     fn effect_server(
         &self,
         server: hyper::server::Builder<AddrIncoming>,

@@ -56,7 +56,7 @@ pub trait PreparedEffect {
     /// ## Note
     /// [PreparedEffect::add_extension] will be applied after [PreparedEffect::add_router] being applied.
     ///
-    /// the router adding by a [PrepareEffect](crate::PreparedEffect) can safely using Extension adding by 
+    /// the router adding by a [PrepareEffect](crate::PreparedEffect) can safely using Extension adding by
     /// [PreparedEffect::add_extension] in the same [PrepareEffect](crate::PreparedEffect)
     fn add_router(&mut self, router: Router) -> Router {
         router
