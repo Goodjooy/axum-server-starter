@@ -20,6 +20,9 @@ pub struct ProviderField {
     skip: bool,
 
     #[darling(default)]
+    provide_owned: bool,
+
+    #[darling(default)]
     rename: Option<Ident>,
 
     #[darling(default, multiple)]
@@ -35,6 +38,7 @@ impl ProviderField {
             mut skip,
             rename,
             aliases,
+            provide_owned,
         } = self;
 
         match &ident {
@@ -48,7 +52,7 @@ impl ProviderField {
             }
         }
 
-        if skip && (transparent || rename.is_some() || !aliases.is_empty()) {
+        if skip && (transparent || rename.is_some() || !aliases.is_empty() || provide_owned) {
             Err(darling::Error::duplicate_field("skip").with_span(&skip))?;
         }
 
@@ -59,6 +63,7 @@ impl ProviderField {
             skip,
             rename,
             aliases,
+            provide_owned,
         })
     }
 
@@ -70,18 +75,29 @@ impl ProviderField {
             skip,
             rename,
             aliases,
+            provide_owned,
         } = self;
         let ident = ident?;
         let upper_ident = format_ident!("{}", snake_to_upper(&ident.to_string()));
+
         if skip {
             None
         } else {
             Some(FieldInfo {
                 src_field_ident: ident,
                 ty,
-                transparent,
-                wrapper_name: rename.unwrap_or(upper_ident),
+
+                wrapper_name: if !transparent {
+                    Some(rename.unwrap_or(upper_ident))
+                } else {
+                    None
+                },
                 aliases,
+                provide_type: if provide_owned {
+                    ProvideType::Owned
+                } else {
+                    ProvideType::Ref
+                },
             })
         }
     }
@@ -91,8 +107,12 @@ pub struct FieldInfo {
     pub src_field_ident: Ident,
     pub ty: Type,
 
-    pub transparent: bool,
-
-    pub wrapper_name: Ident,
+    pub provide_type: ProvideType,
+    pub wrapper_name: Option<Ident>,
     pub aliases: Vec<Ident>,
+}
+#[derive(Debug, Clone, Copy)]
+pub enum ProvideType {
+    Ref,
+    Owned,
 }
