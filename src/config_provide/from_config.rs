@@ -1,3 +1,6 @@
+/// the configure info loading from a configure
+///
+/// usually using with [Provider](crate::Provider)
 pub trait FromConfig<'r, C>: Sized {
     fn from_config(config: &'r C) -> Self;
 }
