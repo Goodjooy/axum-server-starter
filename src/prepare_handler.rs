@@ -5,6 +5,7 @@ use tap::Pipe;
 
 use crate::{into_effect::IntoFallibleEffect, FromConfig, Prepare, PreparedEffect};
 
+/// make the func-style [Prepare] can be used
 pub trait PrepareHandler<Args, C> {
     type IntoEffect: IntoFallibleEffect + 'static;
     type Future: Future<Output = Self::IntoEffect> + 'static;
@@ -18,6 +19,7 @@ where
     FnPrepare(func, PhantomData)
 }
 
+/// wrapping for function-style [Prepare]
 pub struct FnPrepare<C, Args, F>(F, PhantomData<(Args, C)>)
 where
     F: PrepareHandler<Args, C>;

@@ -11,6 +11,7 @@ pub enum ServerReady<I, M, G> {
 impl<G: IntoFuture<Output = hyper::Result<()>>>
     ServerReady<AddrIncoming, IntoMakeService<Router<Body>>, G>
 {
+    /// start this server
     pub async fn launch(self) -> hyper::Result<()> {
         match self {
             ServerReady::Server(s) => s.await?,

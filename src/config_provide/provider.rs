@@ -1,3 +1,5 @@
+/// the Config that can provide config info `T`
+/// the T can be either returning Ownership or Reference
 pub trait Provider<'r, T: 'r> {
     fn provide(&'r self) -> T;
 }

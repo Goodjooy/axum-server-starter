@@ -25,10 +25,10 @@ use crate::{fn_prepare, server_ready::ServerReady, PrepareHandler};
 
 use self::error::PrepareError;
 pub use self::{
-    pre_initial::{BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect},
-    serve_bind::{ServeBind, ServerEffect},
+    prepare::{BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect},
+    serve_bind::{ServeAddress, ServerEffect},
 };
-mod pre_initial;
+mod prepare;
 mod serve_bind;
 
 /// type for prepare starting
@@ -42,7 +42,7 @@ pub struct ServerPrepare<C, L> {
 impl<C> ServerPrepare<C, Identity> {
     pub fn with_config(config: C) -> Self
     where
-        C: ServeBind,
+        C: ServeAddress,
     {
         ServerPrepare {
             config: Arc::new(config),
@@ -53,6 +53,7 @@ impl<C> ServerPrepare<C, Identity> {
 }
 
 impl<C, L> ServerPrepare<C, L> {
+    /// adding a [Prepare]
     pub fn append<P>(mut self, prepare: P) -> Self
     where
         P: Prepare<C>,
@@ -61,14 +62,18 @@ impl<C, L> ServerPrepare<C, L> {
         self.prepares.push((type_name::<P>(), task));
         self
     }
-
+    /// adding a function-style [Prepare]
     pub fn append_fn<F, Args>(self, func: F) -> Self
     where
         F: PrepareHandler<Args, C>,
     {
         self.append(fn_prepare(func))
     }
-
+    /// adding global middleware
+    ///
+    /// ## note
+    /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
+    /// axum requirement
     pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>> {
         ServerPrepare {
             middleware: self.middleware.layer(layer),
@@ -76,7 +81,9 @@ impl<C, L> ServerPrepare<C, L> {
             prepares: self.prepares,
         }
     }
-
+    /// prepare to start this server
+    ///
+    /// this will consume `Self` then return [ServerReady](crate::ServerReady)
     pub async fn prepare_start(
         self,
     ) -> Result<
@@ -88,7 +95,7 @@ impl<C, L> ServerPrepare<C, L> {
         Box<dyn Error>,
     >
     where
-        C: ServeBind + ServerEffect,
+        C: ServeAddress + ServerEffect,
         L: tower::Layer<axum::routing::Route>,
         <L as Layer<Route>>::Service: Send
             + Clone
@@ -127,7 +134,7 @@ impl<C, L> ServerPrepare<C, L> {
             }
         });
 
-        let server = server::Server::bind(&ServeBind::get_address(&*self.config).into())
+        let server = server::Server::bind(&ServeAddress::get_address(&*self.config).into())
             // apply effect config server
             .pipe(|server| {
                 effects

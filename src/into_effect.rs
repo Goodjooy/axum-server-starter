@@ -2,6 +2,7 @@ use std::{convert::Infallible, error};
 
 use crate::PreparedEffect;
 
+/// fallible prepare effect
 pub trait IntoFallibleEffect {
     type Effect: PreparedEffect;
     type Error: std::error::Error;

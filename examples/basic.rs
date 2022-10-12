@@ -10,11 +10,11 @@ use std::{
 };
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
-use axum_server_starter::{
-    BoxPreparedEffect, ExtensionManage, FromConfig, Prepare, PreparedEffect, Provider, ServeBind,
-    ServerEffect, ServerPrepare,
+use axum_starter::{
+    BoxPreparedEffect, ExtensionManage, FromConfig, Prepare, PreparedEffect, Provider,
+    ServeAddress, ServerEffect, ServerPrepare,
 };
-use hyper::{server::Builder, Response};
+use hyper::Response;
 use tokio::sync::oneshot;
 use tower_http::catch_panic::CatchPanicLayer;
 #[tokio::main]
@@ -53,7 +53,7 @@ impl<'r, C: Provider<'r, SocketAddr>> FromConfig<'r, C> for Addr {
     }
 }
 
-impl ServeBind for Config {
+impl ServeAddress for Config {
     type Address = SocketAddr;
 
     fn get_address(&self) -> Self::Address {
@@ -61,11 +61,7 @@ impl ServeBind for Config {
     }
 }
 
-impl ServerEffect for Config {
-    fn effect_server<I>(&self, server: Builder<I>) -> Builder<I> {
-        server
-    }
-}
+impl ServerEffect for Config {}
 
 fn show_address(Addr(addr): Addr) -> impl Future<Output = ()> {
     async move {
