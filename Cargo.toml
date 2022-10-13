@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["./codegen/derive_config_provider"]
+members = ["./codegen/derive_starter"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 axum = "0.5.16"
-derive_config_provider = { version = "0.1.0", path = "codegen/derive_config_provider" }
+derive-starter = { version = "0.1.0", path = "codegen/derive_starter" }
 futures = "0.3.24"
 http-body = "0.4.5"
 hyper = { version = "0.14.20", features = ["server"] }
