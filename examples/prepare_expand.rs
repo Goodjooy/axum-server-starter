@@ -9,8 +9,11 @@ use std::{
 
 use axum::{extract::Path, routing::get, Extension};
 use axum_starter::{
-    prepare, ExtensionManage, PreparedEffect, Provider, ServeAddress, ServerEffect, ServerPrepare,
+    extension::SetExtension, graceful::SetGraceful, prepare, router::Route, PreparedEffect,
+    Provider, ServeAddress, ServerEffect, ServerPrepare,
 };
+use futures::FutureExt;
+use tokio::sync::oneshot;
 
 #[tokio::main]
 async fn main() {
@@ -19,7 +22,8 @@ async fn main() {
         name: "Str".to_string(),
     })
     .append(Student)
-    // .append(Echo)
+    .append(Echo)
+    .append(GracefulExit)
     .prepare_start()
     .await
     .expect("")
@@ -36,31 +40,39 @@ async fn arr<'arg>(id: i32, name: &'arg String) -> Result<impl PreparedEffect, I
 }
 
 #[prepare(Echo)]
-fn adding_echo() -> EchoEffect {
-    EchoEffect
-}
-
-struct EchoEffect;
-impl PreparedEffect for EchoEffect {
-    fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {
-        let state = Arc::new(AtomicUsize::new(0));
-
-        extension.add_extension(state)
-    }
-
-    fn add_router(&mut self, router: axum::Router) -> axum::Router {
-        router.route(
+fn adding_echo() -> impl PreparedEffect {
+    (
+        Route::new(
             "/:path",
             get(
-                |Path(path): Path<String>, Extension(count): Extension<Arc<AtomicUsize>>| async move{
+                |Path(path): Path<String>, Extension(count): Extension<Arc<AtomicUsize>>| async move {
                     println!("incoming");
                     let now = count.fetch_add(1, Ordering::Relaxed);
-                    format!("Welcome {},you are No.{}", path, now+1)
+                    format!("Welcome {},you are No.{}", path, now + 1)
                 },
             ),
-        ).route("/f/panic",get(|| async{panic!("Not a api")}))
-    }
+        ),
+        Route::new("/f/panic", get(|| async { panic!("Not a api") })),
+        SetExtension::arc(AtomicUsize::new(0)),
+    )
 }
+
+#[prepare(GracefulExit)]
+async fn graceful_shutdown() -> impl PreparedEffect {
+    let (tx, rx) = oneshot::channel();
+    tokio::spawn(async move {
+        match tokio::signal::ctrl_c().await {
+            _ => {
+                println!("recv ctrl c");
+                tx.send(())
+            }
+        }
+    });
+    tokio::task::yield_now().await;
+
+    SetGraceful::new(rx.map(|_| ()))
+}
+
 #[derive(Debug, Provider)]
 pub struct Config {
     #[provider(transparent)]

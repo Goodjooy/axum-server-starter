@@ -1,6 +1,7 @@
 mod config_provide;
-mod prepared_effect;
+mod effect_utils;
 mod prepare_handler;
+mod prepared_effect;
 mod server_prepare;
 mod server_ready;
 pub use server_prepare::{
@@ -14,3 +15,5 @@ pub use prepare_handler::{fn_prepare, FnPrepare, PrepareHandler};
 
 pub use derive_starter::{prepare, Provider};
 pub use prepared_effect::IntoFallibleEffect;
+
+pub use effect_utils::{extension, graceful, router, service};
