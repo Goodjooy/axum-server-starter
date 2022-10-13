@@ -56,9 +56,9 @@ impl ProviderField {
             Err(darling::Error::duplicate_field("skip").with_span(&skip))?;
         }
 
-        if provide_ref {
-            Err(darling::Error::unexpected_type("ref Not support").with_span(&provide_ref))?;
-        }
+        // if provide_ref {
+        //     Err(darling::Error::unexpected_type("ref Not support").with_span(&provide_ref))?;
+        // }
 
         Ok(Self {
             ident,

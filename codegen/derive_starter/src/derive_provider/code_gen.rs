@@ -1,7 +1,7 @@
 use darling::ToTokens;
 use syn::{Ident, Type};
 
-use super::marco_models::fields::{ProvideType, FieldInfo};
+use super::macro_models::fields::{ProvideType, FieldInfo};
 
 
 pub struct CodeGen<'i> {

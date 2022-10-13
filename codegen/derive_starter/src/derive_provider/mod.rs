@@ -1,10 +1,10 @@
 use darling::FromDeriveInput;
 use syn::DeriveInput;
 
-use self::marco_models::derive_model::ProviderDerive;
+use self::macro_models::derive_model::ProviderDerive;
 
 mod code_gen;
-mod marco_models;
+mod macro_models;
 
 pub fn provider_derive(derive_input: DeriveInput) -> darling::Result<proc_macro::TokenStream> {
     if !derive_input.generics.params.is_empty() {
