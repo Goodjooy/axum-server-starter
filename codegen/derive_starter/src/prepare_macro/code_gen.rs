@@ -1,6 +1,6 @@
 use darling::ToTokens;
-use proc_macro2::Ident;
-use syn::{ReturnType, Type};
+
+use syn::{Lifetime, ReturnType, Type};
 
 use super::inputs::input_fn::InputFn;
 
@@ -10,12 +10,14 @@ pub struct CodeGen<'r> {
     prepare_call: &'r syn::Ident,
 
     call_args: Vec<&'r Type>,
+    args_lifetime: Option<&'r Lifetime>,
     call_ret: &'r ReturnType,
 }
 
 impl<'r> CodeGen<'r> {
     pub fn new(
         prepare_name: &'r syn::Ident,
+        arg_lifetime: &'r Option<Lifetime>,
         InputFn {
             is_async,
             fn_name,
@@ -29,6 +31,7 @@ impl<'r> CodeGen<'r> {
             prepare_call: fn_name,
             call_args: args_type,
             call_ret: ret_type,
+            args_lifetime: arg_lifetime.as_ref(),
         }
     }
 }
@@ -41,6 +44,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             prepare_call,
             call_args,
             call_ret,
+            args_lifetime,
         } = self;
 
         // prepare type
@@ -50,9 +54,14 @@ impl<'r> ToTokens for CodeGen<'r> {
 
         tokens.extend(token);
 
+        let bound_lifetime = match args_lifetime {
+            Some(l) => quote::quote!(#l),
+            None => quote::quote!('r),
+        };
+
         let impl_bounds = call_args.iter().map(|ty| {
             quote::quote! {
-                Config: for<'r> ::axum_starter::Provider<'r, #ty>,
+                Config: for<#bound_lifetime> ::axum_starter::Provider<#bound_lifetime, #ty>,
             }
         });
 
@@ -65,9 +74,9 @@ impl<'r> ToTokens for CodeGen<'r> {
             },
         };
 
-        let args_fetch = call_args.iter().map(|ty| {
+        let args_fetch = call_args.iter().map(|_ty| {
             quote::quote! {
-                <Config as ::axum_starter::Provider<#ty>>::provide(&config)
+                ::axum_starter::Provider::provide(std::ops::Deref::deref(&config))
             }
         });
 

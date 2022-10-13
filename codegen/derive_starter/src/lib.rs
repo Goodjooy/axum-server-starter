@@ -20,7 +20,7 @@ pub fn prepare(
     let prepare_name = parse_macro_input!(attrs as PrepareName);
     let fn_item = parse_macro_input!(input as ItemFn);
 
-    match prepare_macro::prepare_macro(&prepare_name, &fn_item) {
+    match prepare_macro::prepare_macro(&prepare_name, fn_item) {
         Ok(token) => token,
         Err(error) => error.to_compile_error().into(),
     }
