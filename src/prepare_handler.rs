@@ -3,7 +3,7 @@ use std::{error, marker::PhantomData, sync::Arc};
 use futures::{Future, FutureExt, TryFutureExt};
 use tap::Pipe;
 
-use crate::{into_effect::IntoFallibleEffect, FromConfig, Prepare, PreparedEffect};
+use crate::{prepared_effect::IntoFallibleEffect, FromConfig, Prepare, PreparedEffect};
 
 /// make the func-style [Prepare] can be used
 pub trait PrepareHandler<Args, C> {
