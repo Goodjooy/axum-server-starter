@@ -10,7 +10,7 @@ use tap::Pipe;
 /// Preparing before server launch
 ///
 /// the generic argument `Config` represent to the server config object
-pub trait Prepare<Config> {
+pub trait Prepare<Config: 'static> {
     /// preparing before sever start, return the effect after this preparing finish
     ///
     /// return type is `Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>,Box<dyn Error>>>>>`

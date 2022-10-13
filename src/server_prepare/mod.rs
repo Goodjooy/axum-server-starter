@@ -52,7 +52,7 @@ impl<C> ServerPrepare<C, Identity> {
     }
 }
 
-impl<C, L> ServerPrepare<C, L> {
+impl<C: 'static, L> ServerPrepare<C, L> {
     /// adding a [Prepare]
     pub fn append<P>(mut self, prepare: P) -> Self
     where
@@ -96,7 +96,7 @@ impl<C, L> ServerPrepare<C, L> {
     >
     where
         C: ServeAddress + ServerEffect,
-        L: tower::Layer<axum::routing::Route>,
+        L: tower::Layer<Route>,
         <L as Layer<Route>>::Service: Send
             + Clone
             + Service<
