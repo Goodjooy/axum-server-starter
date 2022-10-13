@@ -1,7 +1,8 @@
 use darling::util;
 use syn::Ident;
 
-use crate::code_gen::CodeGen;
+
+use crate::derive_provider::code_gen::CodeGen;
 
 use super::fields::{FieldInfo, ProviderField};
 

@@ -1,7 +1,8 @@
 use darling::ToTokens;
 use syn::{Ident, Type};
 
-use crate::marco_models::fields::{FieldInfo, ProvideType};
+use super::marco_models::fields::{ProvideType, FieldInfo};
+
 
 pub struct CodeGen<'i> {
     provider: &'i Ident,
