@@ -1,4 +1,5 @@
 use std::{
+    convert::Infallible,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -28,8 +29,10 @@ async fn main() {
 }
 
 #[prepare(Student 'arg)]
-fn arr<'arg>(id: i32, name: &'arg String) {
-    println!("my name is {name} id is {id}")
+async fn arr<'arg>(id: i32, name: &'arg String) -> Result<impl PreparedEffect, Infallible> {
+    println!("my name is {name} id is {id}");
+
+    Ok(())
 }
 
 #[prepare(Echo)]

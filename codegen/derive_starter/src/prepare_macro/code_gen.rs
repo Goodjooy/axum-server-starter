@@ -1,6 +1,9 @@
 use darling::ToTokens;
 
+use proc_macro2::TokenStream;
 use syn::{Lifetime, ReturnType, Type};
+
+use crate::utils::verify_can_bound;
 
 use super::inputs::input_fn::InputFn;
 
@@ -69,9 +72,15 @@ impl<'r> ToTokens for CodeGen<'r> {
             ReturnType::Default => quote::quote! {
                 () : ::axum_starter::IntoFallibleEffect + 'static,
             },
-            ReturnType::Type(_, ty) => quote::quote! {
-                #ty : ::axum_starter::IntoFallibleEffect + 'static,
-            },
+            ReturnType::Type(_, ty) => {
+                if verify_can_bound(&ty) {
+                    quote::quote! {
+                        #ty : ::axum_starter::IntoFallibleEffect + 'static,
+                    }
+                } else {
+                    TokenStream::new()
+                }
+            }
         };
 
         let args_fetch = call_args.iter().map(|_ty| {
