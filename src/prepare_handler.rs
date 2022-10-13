@@ -24,7 +24,7 @@ pub struct FnPrepare<C, Args, F>(F, PhantomData<(Args, C)>)
 where
     F: PrepareHandler<Args, C>;
 
-impl<C, Args, F> Prepare<C> for FnPrepare<C, Args, F>
+impl<C: 'static, Args, F> Prepare<C> for FnPrepare<C, Args, F>
 where
     F: PrepareHandler<Args, C>,
 {

@@ -6,11 +6,11 @@ use std::{
 use axum::{
     body::Bytes,
     routing::{IntoMakeService, Route},
-    Router,
+    BoxError, Router,
 };
 
 use futures::{stream::iter, StreamExt, TryFutureExt, TryStreamExt};
-use http_body::combinators::UnsyncBoxBody;
+
 use hyper::{
     server::{self, conn::AddrIncoming},
     Body, Request, Response,
@@ -52,7 +52,7 @@ impl<C> ServerPrepare<C, Identity> {
     }
 }
 
-impl<C, L> ServerPrepare<C, L> {
+impl<C: 'static, L> ServerPrepare<C, L> {
     /// adding a [Prepare]
     pub fn append<P>(mut self, prepare: P) -> Self
     where
@@ -84,7 +84,7 @@ impl<C, L> ServerPrepare<C, L> {
     /// prepare to start this server
     ///
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
-    pub async fn prepare_start(
+    pub async fn prepare_start<NewResBody>(
         self,
     ) -> Result<
         ServerReady<
@@ -96,15 +96,14 @@ impl<C, L> ServerPrepare<C, L> {
     >
     where
         C: ServeAddress + ServerEffect,
-        L: tower::Layer<axum::routing::Route>,
-        <L as Layer<Route>>::Service: Send
+        ServiceBuilder<L>: Layer<Route>,
+        <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
-            + Service<
-                Request<Body>,
-                Response = Response<UnsyncBoxBody<Bytes, Box<dyn Error + Sync + Send>>>,
-                Error = Infallible,
-            > + 'static,
-        <<L as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+            + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
+            + 'static,
+        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+        NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
+        NewResBody::Error: Into<BoxError>,
     {
         let mut effects = iter(self.prepares)
             .then(|(name, fut)| fut.map_err(move |err| PrepareError::new(name, err)))
