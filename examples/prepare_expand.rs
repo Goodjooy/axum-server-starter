@@ -27,14 +27,13 @@ async fn main() {
     .expect("");
 }
 
-
 #[prepare(Student 'arg)]
-fn arr<'arg>(id: i32, name: & 'arg String) {
+fn arr<'arg>(id: i32, name: &'arg String) {
     println!("my name is {name} id is {id}")
 }
 
 #[prepare(Echo)]
-fn adding_echo()->EchoEffect{
+fn adding_echo() -> EchoEffect {
     EchoEffect
 }
 
@@ -42,10 +41,10 @@ struct EchoEffect;
 impl PreparedEffect for EchoEffect {
     fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {
         let state = Arc::new(AtomicUsize::new(0));
-        
+
         extension.add_extension(state)
     }
-    
+
     fn add_router(&mut self, router: axum::Router) -> axum::Router {
         router.route(
             "/:path",

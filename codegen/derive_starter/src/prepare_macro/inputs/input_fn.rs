@@ -8,7 +8,7 @@ pub struct InputFn<'r> {
 }
 
 impl<'r> InputFn<'r> {
-   pub fn from_fn_item(item: &'r ItemFn) -> syn::Result<Self> {
+    pub fn from_fn_item(item: &'r ItemFn) -> syn::Result<Self> {
         let sig = &item.sig;
         if sig.constness.is_some() {
             Err(syn::Error::new(
