@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)] 
+
 mod derive_provider;
 mod prepare_macro;
 use prepare_macro::inputs::attr_name::PrepareName;
