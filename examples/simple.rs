@@ -1,25 +1,3 @@
-# Server Starter
-
-## 背景
-
-随着服务器的功能逐步丰富，启动时需要准备的内容也极大地扩大了，这也使得 main 函数里面出现了异常复杂的启动流程。
-复杂的启动流程会使得 main 里面的代码过于复杂，且可能出现难以被注意到的错误。为了进一步简化启动区的代码，提供简洁的服务启动过程代码
-因此制作 Server Starter 以达到目的
-
-## Quick Start
-
-The following example using `axum-starter` starting a web server which
-server on `http://127.0.0.1:8080`
-
-It can do
-
-1. show info before launch
-2. using `simple_logger` and adding TraceLayer as logger middleware
-3. request `http://127.0.0.1:8080/{name}` will respond greet with your name
-4. using `ctrl + c` can graceful stop the server
-
-```rust
-
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use axum::{extract::Path, routing::get};
@@ -117,24 +95,8 @@ async fn start() {
         .with_global_middleware(TraceLayer::new_for_http())
         .prepare_start()
         .await
-        .expect("Prepare for starting server failure")
+        .expect("Prepare for starting server failure ")
         .launch()
         .await
         .expect("Server Error")
 }
-
-```
-
-### `Prepare` trait
-
-the trait define how to apply the prepare task,
-after prepare down, it return a `PreparedEffect`
-
-### `PreparedEffect` trait
-
-the trait will apply multiply effect on the server. include the following
-
-- Router
-- Extension
-- GracefulShutdown
-- setting the internal `hyper::Server`
