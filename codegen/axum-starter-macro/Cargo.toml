@@ -14,4 +14,4 @@ quote = "1.0.21"
 syn = "1.0.102"
 
 [dev-dependencies]
-axum-starter = { path = "../.." }
+axum-starter = "0.1.0"
