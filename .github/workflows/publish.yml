@@ -1,8 +1,8 @@
-name: Rust
+name: publish
 
 on:
-  pull_request:
-    branches: [ "pubilsh" ]
+  push:
+    branches: [ "publish" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,5 +22,5 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo publish -p axum-starter-macro --token ${CRATES_TOKEN}
-      - run: cargo publish --token ${CRATES_TOKEN}
+      - run: cargo publish -p axum-starter-macro --token ${CRATES_KEY}
+      - run: cargo publish --token ${CRATES_KEY}
