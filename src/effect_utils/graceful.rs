@@ -4,6 +4,7 @@ use futures::Future;
 
 use crate::PreparedEffect;
 
+/// [PreparedEffect](crate::PreparedEffect) set graceful shutdown
 pub struct SetGraceful(Option<Pin<Box<dyn Future<Output = ()>>>>);
 
 impl SetGraceful {

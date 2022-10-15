@@ -19,6 +19,7 @@ pub trait Prepare<Config: 'static> {
     fn prepare(self, config: Arc<Config>) -> BoxPreparedEffect;
 }
 
+/// boxed [Future] which return a [Result], with boxed [PreparedEffect] and [Error]
 pub type BoxPreparedEffect =
     Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>, Box<dyn Error>>>>>;
 

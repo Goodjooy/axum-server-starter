@@ -3,6 +3,7 @@ use std::future::IntoFuture;
 use axum::{routing::IntoMakeService, Router};
 use hyper::{server::conn::AddrIncoming, Body};
 
+/// all prepare task are done , the server is ready for launch
 pub enum ServerReady<I, M, G> {
     Server(hyper::server::Server<I, M>),
     Graceful(G),
