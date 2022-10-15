@@ -2,6 +2,16 @@
 name = "axum-starter-macro"
 version = "0.1.0"
 edition = "2021"
+authors = ["FrozenString<frozenstringstable@gmail.com>"]
+description = "A help crate for simplify the code of starting axum server "
+homepage = "https://github.com/Goodjooy/axum-server-starter"
+documentation = "https://docs.rs/axum-starter"
+license = "MIT"
+keywords = ["web", "http", "axum"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 proc-macro = true
