@@ -1,0 +1,26 @@
+name: Rust
+
+on:
+  pull_request:
+    branches: [ "pubilsh" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  CRATES_KEY: ${{ secrets.CRATES_KEY }}
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo publish -p axum-starter-macro --token ${CRATES_TOKEN}
+      - run: cargo publish --token ${CRATES_TOKEN}
