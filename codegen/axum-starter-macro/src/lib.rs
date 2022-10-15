@@ -8,7 +8,7 @@ use syn::{parse_macro_input, DeriveInput, ItemFn};
 #[macro_use]
 mod utils;
 
-/// implement [Provider<T>](axum_starter::Provider) for each field of the struct
+/// implement `Provider<T>` for each field of the struct
 ///
 /// ## Example
 ///
@@ -41,7 +41,7 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
     darling_err!(derive_provider::provider_derive(derive_input))
 }
 
-/// make a function can apply as a [Prepare](axum_starter::Prepare)
+/// make a function can apply as a `Prepare`
 ///
 /// ## Example
 ///
@@ -49,7 +49,7 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 ///
 /// the function arguments require can be provide by  the `Configure`.
 ///
-/// the return type require impl the trait [IntoFallibleEffect](axum_starter::IntoFallibleEffect), usually can be one of :
+/// the return type require impl the trait `IntoFallibleEffect`, usually can be one of :
 /// - `()`
 /// - `Result<impl PreparedEffect, CustomError>`
 /// - `impl PreparedEffect`
