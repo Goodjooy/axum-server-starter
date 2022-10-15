@@ -2,9 +2,19 @@
 name = "axum-starter"
 version = "0.1.0"
 edition = "2021"
+authors = ["FrozenString<frozenstringstable@gmail.com>"]
+description = "A help crate for simplify the code of starting axum server "
+homepage = "https://github.com/Goodjooy/axum-server-starter"
+documentation = "https://docs.rs/axum-starter"
+license = "MIT"
+keywords = ["web", "http", "axum"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace]
-members = ["./codegen/axum-starter-macro"]
+members = ["./codegen/axum-starter-macro", "./examples/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
