@@ -1,10 +1,10 @@
-# Server Starter
+# Axum Starter
 
-## 背景
+## Why axum-starter
 
-随着服务器的功能逐步丰富，启动时需要准备的内容也极大地扩大了，这也使得 main 函数里面出现了异常复杂的启动流程。
-复杂的启动流程会使得 main 里面的代码过于复杂，且可能出现难以被注意到的错误。为了进一步简化启动区的代码，提供简洁的服务启动过程代码
-因此制作 Server Starter 以达到目的
+With the growing of the server functions, the code which prepare multiply infrastructures for the server in the main become more and more complex.  
+For example, I need connect to `Mysql` and `Redis`, start `MessageQuery` , start GracefulShutdown and so on.  
+In other to simplify the start up code with my server project, there comes the `axum-starter`
 
 ## Quick Start
 
