@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)] 
+#![forbid(unsafe_code)]
 
 mod config_provide;
 mod effect_utils;
@@ -12,7 +12,7 @@ pub use server_prepare::{
 };
 pub use server_ready::ServerReady;
 
-pub use config_provide::{from_config::FromConfig, provider::Provider};
+pub use config_provide::provider::Provider;
 pub use prepare_handler::{fn_prepare, FnPrepare, PrepareHandler};
 
 pub use axum_starter_macro::{prepare, Provider};

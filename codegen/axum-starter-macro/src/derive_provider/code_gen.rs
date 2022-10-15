@@ -39,29 +39,11 @@ impl<'i> ToTokens for CodeGen<'i> {
                 ProvideType::Ref => {
                     quote::quote! {
                         pub struct #wrap <'r> (pub &'r #ty);
-
-                        impl<'r,C> ::axum_starter::FromConfig<'r,C> for #wrap<'r>
-                        where
-                            C: ::axum_starter::Provider<'r,#wrap<'r>>
-                        {
-                            fn from_config(config:&'r C)->Self{
-                                <C as ::axum_starter::Provider<'r,#wrap<'r>>>::provide(config)
-                            }
-                        }
                     }
                 }
                 ProvideType::Owned => {
                     quote::quote! {
                         pub struct #wrap (pub  #ty);
-
-                        impl<'r,C> ::axum_starter::FromConfig<'r,C> for #wrap
-                        where
-                            C: ::axum_starter::Provider<'r,#wrap>
-                        {
-                            fn from_config(config:&'r C)->Self{
-                                <C as ::axum_starter::Provider<'r,#wrap>>::provide(config)
-                            }
-                        }
                     }
                 }
             };
