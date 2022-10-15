@@ -1,8 +1,8 @@
-name: Rust
+name: publish
 
 on:
   push:
-    branches: [ "pubilsh" ]
+    branches: [ "publish" ]
 
 env:
   CARGO_TERM_COLOR: always
