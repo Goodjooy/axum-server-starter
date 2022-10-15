@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+#![doc = include_str!("../Readme.md")]
 mod config_provide;
 mod effect_utils;
 mod prepare_handler;
@@ -10,10 +12,10 @@ pub use server_prepare::{
 };
 pub use server_ready::ServerReady;
 
-pub use config_provide::{from_config::FromConfig, provider::Provider};
+pub use config_provide::provider::Provider;
 pub use prepare_handler::{fn_prepare, FnPrepare, PrepareHandler};
 
-pub use derive_starter::{prepare, Provider};
+pub use axum_starter_macro::{prepare, Provider};
 pub use prepared_effect::IntoFallibleEffect;
 
 pub use effect_utils::{extension, graceful, router, service};

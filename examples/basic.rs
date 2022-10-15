@@ -11,8 +11,8 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_starter::{
-    BoxPreparedEffect, ExtensionManage, FromConfig, Prepare, PreparedEffect, Provider,
-    ServeAddress, ServerEffect, ServerPrepare,
+    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, Provider, ServeAddress,
+    ServerEffect, ServerPrepare,
 };
 use hyper::Response;
 use tokio::sync::oneshot;
@@ -65,14 +65,6 @@ impl<'r> Provider<'r, SocketAddr> for Config {
     }
 }
 
-struct Addr(SocketAddr);
-
-impl<'r, C: Provider<'r, SocketAddr>> FromConfig<'r, C> for Addr {
-    fn from_config(config: &'r C) -> Self {
-        Self(config.provide())
-    }
-}
-
 impl ServeAddress for Config {
     type Address = SocketAddr;
 
@@ -83,7 +75,7 @@ impl ServeAddress for Config {
 
 impl ServerEffect for Config {}
 
-fn show_address(Addr(addr): Addr) -> impl Future<Output = ()> {
+fn show_address(addr: SocketAddr) -> impl Future<Output = ()> {
     async move {
         println!("server serve at http://{:?}", addr);
     }

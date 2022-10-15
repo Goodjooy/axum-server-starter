@@ -6,6 +6,10 @@ use tower::Service;
 
 use crate::PreparedEffect;
 
+/// [PreparedEffect](crate::PreparedEffect) add route
+/// 
+/// ## Note
+/// calling [Router::route](axum::Router::route) 
 pub struct Route<R>(&'static str, Option<R>);
 
 impl<R> Route<R> {
@@ -28,6 +32,10 @@ where
     }
 }
 
+/// [PreparedEffect](crate::PreparedEffect) merge router
+/// 
+/// ## Note
+/// calling [Router::merge](axum::Router::merge) 
 pub struct Merge<R>(Option<R>);
 
 impl<R> Merge<R> {
@@ -47,6 +55,10 @@ where
     }
 }
 
+/// [PreparedEffect](crate::PreparedEffect) nest router
+/// 
+/// ## Note
+/// calling [Router::nest](axum::Router::nest) 
 pub struct Nest<R> {
     path: &'static str,
     router: Option<R>,
@@ -75,6 +87,10 @@ where
     }
 }
 
+/// [PreparedEffect](crate::PreparedEffect) set fallback handle
+/// 
+/// ## Note
+/// calling [Router::fallback](axum::Router::fallback) 
 pub struct Fallback<R> {
     service: Option<R>,
 }

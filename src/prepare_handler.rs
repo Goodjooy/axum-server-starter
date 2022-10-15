@@ -1,9 +1,8 @@
-use std::{error, marker::PhantomData, sync::Arc};
-
 use futures::{Future, FutureExt, TryFutureExt};
+use std::{error, marker::PhantomData, sync::Arc};
 use tap::Pipe;
 
-use crate::{prepared_effect::IntoFallibleEffect, FromConfig, Prepare, PreparedEffect};
+use crate::{prepared_effect::IntoFallibleEffect, Prepare, PreparedEffect, Provider};
 
 /// make the func-style [Prepare] can be used
 pub trait PrepareHandler<Args, C> {
@@ -12,6 +11,7 @@ pub trait PrepareHandler<Args, C> {
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
+/// help function for wrap function into [PrepareHandler]
 pub fn fn_prepare<C, Args, F>(func: F) -> FnPrepare<C, Args, F>
 where
     F: PrepareHandler<Args, C>,
@@ -46,7 +46,7 @@ macro_rules! fn_prepare_handles {
             Fut: Future<Output = FallibleEffect> + 'static,
             FallibleEffect: IntoFallibleEffect + 'static,
             $(
-                $args: for<'r>FromConfig<'r, Config>
+                Config: for<'r>Provider<'r, $args>
             ),*
         {
             type IntoEffect = FallibleEffect;
@@ -57,7 +57,7 @@ macro_rules! fn_prepare_handles {
             fn prepare(self, config: Arc<Config>) -> Self::Future {
                 self(
                     $(
-                        <$args as FromConfig<Config>>::from_config(&config)
+                        <Config as Provider<$args>>::provide(&config)
                     ),*
                 )
             }
