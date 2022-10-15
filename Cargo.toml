@@ -19,7 +19,7 @@ members = ["./codegen/axum-starter-macro", "./examples/*"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 axum = "0.5.16"
-axum-starter-macro = { version = "0.1.0" ,path ="./codegen/axum-starter-macro"}
+axum-starter-macro = { version = "0.1.0", path = "codegen/axum-starter-macro" }
 futures = "0.3.24"
 http-body = "0.4.5"
 hyper = { version = "0.14.20", features = ["server"] }
