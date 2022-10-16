@@ -1,4 +1,4 @@
-use std::{error::Error, future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use axum::{Extension, Router};
 use hyper::{
@@ -21,13 +21,18 @@ pub trait Prepare<Config: 'static> {
     fn prepare(self, config: Arc<Config>) -> Self::Future;
 }
 
-/// boxed [Future] which return a [Result], with boxed [PreparedEffect] and [Error]
-pub type BoxPreparedEffect =
-    Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>, Box<dyn Error>>>>>;
-
 /// side effect after a [Prepare]
 pub trait PreparedEffect {
-    fn apply_extension(&mut self, router: Router) -> Router {
+    type Extension: ExtensionEffect;
+    type Graceful: GracefulEffect;
+    type Route: RouteEffect;
+    type Server: ServerEffect;
+
+    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server);
+}
+
+pub trait ExtensionEffect: Sized {
+    fn apply_extension(self, router: Router) -> Router {
         router
             .pipe(ExtensionManage)
             .pipe(|extension| self.add_extension(extension))
@@ -35,25 +40,21 @@ pub trait PreparedEffect {
     }
 
     /// [Prepare] want to add `Extension` s
-    fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {
+    fn add_extension(self, extension: ExtensionManage) -> ExtensionManage {
         extension
     }
+}
+
+pub trait GracefulEffect: Sized {
+    type GracefulFuture: Future<Output = ()>;
     /// [Prepare] want to set a graceful shutdown signal returning `[Option::Some]`
     ///
     /// ## Warning
     /// if there are multiply [Prepare] want to set graceful shutdown, the first one set the signal will be applied
-    fn set_graceful(&mut self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
-        None
-    }
+    fn set_graceful(self) -> Option<Self::GracefulFuture>;
+}
 
-    /// changing the serve config
-    ///
-    /// ## Note
-    /// the changing of server config might be overwrite by `Config` using [crate::ServerEffect]
-    fn config_serve(&self, server: server::Builder<AddrIncoming>) -> server::Builder<AddrIncoming> {
-        server
-    }
-
+pub trait RouteEffect: Sized {
     /// prepare want to adding routing on the root router
     ///
     /// ## Note
@@ -61,8 +62,18 @@ pub trait PreparedEffect {
     ///
     /// the router adding by a [PrepareEffect](crate::PreparedEffect) can safely using Extension adding by
     /// [PreparedEffect::add_extension] in the same [PrepareEffect](crate::PreparedEffect)
-    fn add_router(&mut self, router: Router) -> Router {
+    fn add_router(self, router: Router) -> Router {
         router
+    }
+}
+
+pub trait ServerEffect: Sized {
+    /// changing the serve config
+    ///
+    /// ## Note
+    /// the changing of server config might be overwrite by `Config` using [crate::ServerEffect]
+    fn config_serve(self, server: server::Builder<AddrIncoming>) -> server::Builder<AddrIncoming> {
+        server
     }
 }
 
