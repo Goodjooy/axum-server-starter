@@ -11,8 +11,7 @@ use std::{
 
 use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
 use axum_starter::{
-    BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect, Provider, ServeAddress,
-    ServerEffect, ServerPrepare,
+    ExtensionManage, PreparedEffect, Provider, ServeAddress, ServerEffect, ServerPrepare,
 };
 use hyper::Response;
 use tokio::sync::oneshot;
@@ -20,7 +19,7 @@ use tower_http::catch_panic::CatchPanicLayer;
 #[tokio::main]
 async fn main() {
     ServerPrepare::with_config(Config::new())
-        .append(CtrlCStop)
+        .append_fn(ctrl_c_stop)
         .append_fn(echo_handler)
         .append_fn(show_address)
         .append_fn(print_init)
@@ -111,30 +110,48 @@ async fn print_init() {
     println!("Initial");
 }
 
-struct CtrlCStop;
 
-impl Prepare<Config> for CtrlCStop {
-    fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
-        Box::pin(async {
-            let (tx, rx) = oneshot::channel();
-            tokio::spawn(async move {
-                match tokio::signal::ctrl_c().await {
-                    _ => {
-                        println!("recv ctrl c");
-                        tx.send(())
-                    }
-                }
-            });
-            tokio::task::yield_now().await;
-
-            let fut = Box::pin(async move {
-                rx.await.ok();
+async fn ctrl_c_stop() -> CtrlCEffect {
+    let (tx, rx) = oneshot::channel();
+    tokio::spawn(async move {
+        match tokio::signal::ctrl_c().await {
+            _ => {
                 println!("recv ctrl c");
-            });
-            Ok(Box::new(CtrlCEffect { fut: Some(fut) }) as Box<dyn PreparedEffect>)
-        })
-    }
+                tx.send(())
+            }
+        }
+    });
+    tokio::task::yield_now().await;
+
+    let fut = Box::pin(async move {
+        rx.await.ok();
+        println!("recv ctrl c");
+    });
+    CtrlCEffect { fut: Some(fut) }
 }
+
+// impl Prepare<Config> for CtrlCStop {
+//     fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
+//         Box::pin(async {
+//             let (tx, rx) = oneshot::channel();
+//             tokio::spawn(async move {
+//                 match tokio::signal::ctrl_c().await {
+//                     _ => {
+//                         println!("recv ctrl c");
+//                         tx.send(())
+//                     }
+//                 }
+//             });
+//             tokio::task::yield_now().await;
+
+//             let fut = Box::pin(async move {
+//                 rx.await.ok();
+//                 println!("recv ctrl c");
+//             });
+//             Ok(Box::new(CtrlCEffect { fut: Some(fut) }) as Box<dyn PreparedEffect>)
+//         })
+//     }
+// }
 
 struct CtrlCEffect {
     fut: Option<Pin<Box<dyn Future<Output = ()>>>>,

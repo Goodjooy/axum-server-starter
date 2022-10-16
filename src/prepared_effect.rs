@@ -13,6 +13,10 @@ pub trait IntoFallibleEffect {
     fn into_effect(self) -> Result<Self::Effect, Self::Error>;
 }
 
+pub fn into_effect<T: IntoFallibleEffect + 'static>(this: T) -> Result<T::Effect, T::Error> {
+    IntoFallibleEffect::into_effect(this)
+}
+
 impl<T: PreparedEffect, E: error::Error> IntoFallibleEffect for Result<T, E> {
     type Effect = T;
 

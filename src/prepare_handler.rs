@@ -1,8 +1,10 @@
-use futures::{Future, FutureExt, TryFutureExt};
-use std::{error, marker::PhantomData, sync::Arc};
-use tap::Pipe;
+use futures::{future::Map, Future, FutureExt};
+use std::{marker::PhantomData, sync::Arc};
 
-use crate::{prepared_effect::IntoFallibleEffect, Prepare, PreparedEffect, Provider};
+use crate::{
+    prepared_effect::{into_effect, IntoFallibleEffect},
+    Prepare, Provider,
+};
 
 /// make the func-style [Prepare] can be used
 pub trait PrepareHandler<Args, C> {
@@ -28,13 +30,14 @@ impl<C: 'static, Args, F> Prepare<C> for FnPrepare<C, Args, F>
 where
     F: PrepareHandler<Args, C>,
 {
-    fn prepare(self, config: Arc<C>) -> crate::BoxPreparedEffect {
-        self.0
-            .prepare(config)
-            .map(|fut| fut.into_effect())
-            .map_ok(|effect| Box::new(effect) as Box<dyn PreparedEffect>)
-            .map_err(|err| Box::new(err) as Box<dyn error::Error>)
-            .pipe(Box::pin)
+    type Effect = <F::IntoEffect as IntoFallibleEffect>::Effect;
+
+    type Error = <F::IntoEffect as IntoFallibleEffect>::Error;
+
+    type Future = Map<F::Future, fn(F::IntoEffect) -> Result<Self::Effect, Self::Error>>;
+
+    fn prepare(self, config: Arc<C>) -> Self::Future {
+        self.0.prepare(config).map(into_effect)
     }
 }
 
@@ -85,11 +88,13 @@ where
     Config: 'static,
     FallibleEffect: IntoFallibleEffect + 'static,
 {
-    fn prepare(self, config: Arc<Config>) -> crate::BoxPreparedEffect {
-        self(config)
-            .map(IntoFallibleEffect::into_effect)
-            .map_ok(|effect| Box::new(effect) as Box<dyn PreparedEffect>)
-            .map_err(|err| Box::new(err) as Box<dyn error::Error>)
-            .pipe(Box::pin)
+    type Effect = FallibleEffect::Effect;
+
+    type Error = FallibleEffect::Error;
+
+    type Future = Map<Fut, fn(FallibleEffect) -> Result<Self::Effect, Self::Error>>;
+
+    fn prepare(self, config: Arc<Config>) -> Self::Future {
+        self(config).map(into_effect)
     }
 }
