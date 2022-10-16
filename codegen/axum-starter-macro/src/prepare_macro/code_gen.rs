@@ -73,7 +73,7 @@ impl<'r> ToTokens for CodeGen<'r> {
                 () : ::axum_starter::IntoFallibleEffect + 'static,
             },
             ReturnType::Type(_, ty) => {
-                if verify_can_bound(&ty) {
+                if verify_can_bound(ty) {
                     quote::quote! {
                         #ty : ::axum_starter::IntoFallibleEffect + 'static,
                     }

@@ -8,7 +8,7 @@ pub struct SetExtension<E>(E);
 impl<E> SetExtension<Arc<E>>
 where
     Arc<E>: Clone + Send + Sync + 'static,
-{   
+{
     /// [PreparedEffect](crate::PreparedEffect) adding extension with [Arc](std::sync::Arc) wrapping
     pub fn arc(state: E) -> Self {
         Self(Arc::new(state))

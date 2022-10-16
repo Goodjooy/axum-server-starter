@@ -40,14 +40,14 @@ pub fn verify_can_bound(ty: &Type) -> bool {
         | Type::Array(TypeArray { elem, .. })
         | Type::Reference(TypeReference { elem, .. })
         | Type::Slice(TypeSlice { elem, .. })
-        | Type::Group(TypeGroup { elem, .. }) => verify_can_bound(&elem),
+        | Type::Group(TypeGroup { elem, .. }) => verify_can_bound(elem),
         Type::BareFn(TypeBareFn { inputs, output, .. }) => {
             inputs
                 .iter()
                 .all(|BareFnArg { ty, .. }| verify_can_bound(ty))
                 && match output {
                     ReturnType::Default => true,
-                    ReturnType::Type(_, ty) => verify_can_bound(&ty),
+                    ReturnType::Type(_, ty) => verify_can_bound(ty),
                 }
         }
         Type::Path(TypePath {
@@ -55,7 +55,7 @@ pub fn verify_can_bound(ty: &Type) -> bool {
             path: syn::Path { segments, .. },
         }) => {
             let v = match qself {
-                Some(QSelf { ty, .. }) => verify_can_bound(&ty),
+                Some(QSelf { ty, .. }) => verify_can_bound(ty),
                 None => true,
             } && segments
                 .iter()
@@ -75,7 +75,7 @@ pub fn verify_can_bound(ty: &Type) -> bool {
                         inputs.iter().all(verify_can_bound)
                             && match output {
                                 ReturnType::Default => true,
-                                ReturnType::Type(_, ty) => verify_can_bound(&ty),
+                                ReturnType::Type(_, ty) => verify_can_bound(ty),
                             }
                     }
                 });

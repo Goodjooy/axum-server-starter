@@ -90,6 +90,6 @@ where
             .map(IntoFallibleEffect::into_effect)
             .map_ok(|effect| Box::new(effect) as Box<dyn PreparedEffect>)
             .map_err(|err| Box::new(err) as Box<dyn error::Error>)
-            .pipe( Box::pin)
+            .pipe(Box::pin)
     }
 }

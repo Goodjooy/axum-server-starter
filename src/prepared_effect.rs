@@ -32,8 +32,6 @@ impl<T: PreparedEffect> IntoFallibleEffect for T {
     }
 }
 
-
-
 macro_rules! group_prepared_effect {
     ($($args:ident),*$(,)?) => {
         impl<$($args),*> PreparedEffect for ($($args,)*)

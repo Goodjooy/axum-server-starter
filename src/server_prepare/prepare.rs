@@ -64,7 +64,6 @@ pub trait PreparedEffect {
     }
 }
 
-
 /// A help type for adding extension
 pub struct ExtensionManage(pub(crate) Router<Body>);
 
