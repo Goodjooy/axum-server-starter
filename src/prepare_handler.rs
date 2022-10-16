@@ -77,3 +77,19 @@ fn_prepare_handles!(T1, T2, T3, T4, T5, T6, T7);
 fn_prepare_handles!(T1, T2, T3, T4, T5, T6, T7, T8);
 fn_prepare_handles!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
 fn_prepare_handles!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
+
+impl<F, Config, FallibleEffect, Fut> Prepare<Config> for F
+where
+    F: FnOnce(Arc<Config>) -> Fut,
+    Fut: Future<Output = FallibleEffect> + 'static,
+    Config: 'static,
+    FallibleEffect: IntoFallibleEffect + 'static,
+{
+    fn prepare(self, config: Arc<Config>) -> crate::BoxPreparedEffect {
+        self(config)
+            .map(IntoFallibleEffect::into_effect)
+            .map_ok(|effect| Box::new(effect) as Box<dyn PreparedEffect>)
+            .map_err(|err| Box::new(err) as Box<dyn error::Error>)
+            .pipe( Box::pin)
+    }
+}
