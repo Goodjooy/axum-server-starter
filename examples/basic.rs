@@ -110,7 +110,6 @@ async fn print_init() {
     println!("Initial");
 }
 
-
 async fn ctrl_c_stop() -> CtrlCEffect {
     let (tx, rx) = oneshot::channel();
     tokio::spawn(async move {
@@ -129,29 +128,6 @@ async fn ctrl_c_stop() -> CtrlCEffect {
     });
     CtrlCEffect { fut: Some(fut) }
 }
-
-// impl Prepare<Config> for CtrlCStop {
-//     fn prepare(self, _: Arc<Config>) -> BoxPreparedEffect {
-//         Box::pin(async {
-//             let (tx, rx) = oneshot::channel();
-//             tokio::spawn(async move {
-//                 match tokio::signal::ctrl_c().await {
-//                     _ => {
-//                         println!("recv ctrl c");
-//                         tx.send(())
-//                     }
-//                 }
-//             });
-//             tokio::task::yield_now().await;
-
-//             let fut = Box::pin(async move {
-//                 rx.await.ok();
-//                 println!("recv ctrl c");
-//             });
-//             Ok(Box::new(CtrlCEffect { fut: Some(fut) }) as Box<dyn PreparedEffect>)
-//         })
-//     }
-// }
 
 struct CtrlCEffect {
     fut: Option<Pin<Box<dyn Future<Output = ()>>>>,

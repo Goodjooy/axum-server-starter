@@ -12,11 +12,10 @@ use tap::Pipe;
 /// the generic argument `Config` represent to the server config object
 pub trait Prepare<Config: 'static> {
     type Effect: PreparedEffect;
-    type Error: std::error::Error+'static;
+    type Error: std::error::Error + 'static;
     type Future: Future<Output = Result<Self::Effect, Self::Error>>;
     /// preparing before sever start, return the effect after this preparing finish
     ///
-    /// return type is `Pin<Box<dyn Future<Output = Result<Box<dyn PreparedEffect>,Box<dyn Error>>>>>`
     /// - if there is not any problem during preparing, return `Ok()`
     /// - otherwise, return `Err()`
     fn prepare(self, config: Arc<Config>) -> Self::Future;
