@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ExtensionEffect, PreparedEffect};
+use crate::{ExtensionEffect, PreparedEffect, prepared_effect::extension_only};
 
 /// [PreparedEffect](crate::PreparedEffect) adding extension
 pub struct SetExtension<E>(E);
@@ -46,6 +46,6 @@ where
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        (self, (), (), ())
+        extension_only::<Self>(self)
     }
 }

@@ -4,7 +4,7 @@ use axum::response::Response;
 use hyper::{Body, Request};
 use tower::Service;
 
-use crate::{PreparedEffect, RouteEffect};
+use crate::{PreparedEffect, RouteEffect, prepared_effect::route_only};
 
 /// [PreparedEffect](crate::PreparedEffect) add route
 ///
@@ -36,7 +36,7 @@ where
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), self, (), ())
+        route_only::<Self>(self)
     }
 }
 
@@ -85,7 +85,7 @@ where
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), self, (), ())
+        route_only::<Self>(self)
     }
 }
 
@@ -131,7 +131,7 @@ where
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), self, (), ())
+        route_only::<Self>(self)
     }
 }
 
@@ -176,6 +176,6 @@ where
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), self, (), ())
+        route_only::<Self>(self)
     }
 }

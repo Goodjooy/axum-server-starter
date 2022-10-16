@@ -37,6 +37,27 @@ impl<T: PreparedEffect> IntoFallibleEffect for T {
     }
 }
 
+pub fn extension_only<S: PreparedEffect<Graceful = (), Route = (), Server = ()>>(
+    extension: S::Extension,
+) -> (S::Extension, S::Route, S::Graceful, S::Server) {
+    (extension, (), (), ())
+}
+pub fn graceful_only<S: PreparedEffect<Extension = (), Route = (), Server = ()>>(
+    graceful: S::Graceful,
+) -> (S::Extension, S::Route, S::Graceful, S::Server) {
+    ((), (), graceful, ())
+}
+pub fn route_only<S: PreparedEffect<Graceful = (), Server = (), Extension = ()>>(
+    route: S::Route,
+) -> (S::Extension, S::Route, S::Graceful, S::Server) {
+    ((), route, (), ())
+}
+pub fn serve_only<S: PreparedEffect<Graceful = (), Route = (), Extension = ()>>(
+    server: S::Server,
+) -> (S::Extension, S::Route, S::Graceful, S::Server) {
+    ((), (), (), server)
+}
+
 macro_rules! group_prepared_effect {
     ($($args:ident),*$(,)?) => {
         impl<$($args),*> PreparedEffect for ($($args,)*)

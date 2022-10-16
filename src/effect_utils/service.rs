@@ -1,6 +1,6 @@
 use hyper::server::{conn::AddrIncoming, Builder};
 
-use crate::{PreparedEffect, ServerEffect};
+use crate::{prepared_effect::serve_only, PreparedEffect, ServerEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) configure [Builder](hyper::server::Builder)
 pub struct ConfigServer(Box<dyn FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming>>);
@@ -21,7 +21,7 @@ impl PreparedEffect for ConfigServer {
     type Server = Self;
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), (), (), self)
+        serve_only::<Self>(self)
     }
 }
 
