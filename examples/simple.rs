@@ -2,8 +2,8 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use axum::{extract::Path, routing::get};
 use axum_starter::{
-    graceful::SetGraceful, prepare, router::Route, PreparedEffect, Provider, ServeAddress,
-    ServerEffect, ServerPrepare,
+    graceful::SetGraceful, prepare, router::Route, ConfigureServerEffect, PreparedEffect, Provider,
+    ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
 use tokio::sync::oneshot;
@@ -28,7 +28,7 @@ impl ServeAddress for Configure {
     }
 }
 
-impl ServerEffect for Configure {}
+impl ConfigureServerEffect for Configure {}
 
 impl Configure {
     pub fn new() -> Self {

@@ -1,4 +1,4 @@
-use std::{future::Future, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use axum::{Extension, Router};
 use hyper::{
@@ -46,12 +46,11 @@ pub trait ExtensionEffect: Sized {
 }
 
 pub trait GracefulEffect: Sized {
-    type GracefulFuture: Future<Output = ()>;
     /// [Prepare] want to set a graceful shutdown signal returning `[Option::Some]`
     ///
     /// ## Warning
     /// if there are multiply [Prepare] want to set graceful shutdown, the first one set the signal will be applied
-    fn set_graceful(self) -> Option<Self::GracefulFuture>;
+    fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>>;
 }
 
 pub trait RouteEffect: Sized {

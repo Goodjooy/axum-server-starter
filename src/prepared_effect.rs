@@ -1,9 +1,10 @@
-use std::{convert::Infallible, error};
+use std::{convert::Infallible, error, pin::Pin};
 
 use axum::Router;
-use hyper::server::{conn::AddrIncoming, Builder};
+use futures::Future;
+use hyper::server::conn::AddrIncoming;
 
-use crate::PreparedEffect;
+use crate::{ExtensionEffect, GracefulEffect, PreparedEffect, RouteEffect, ServerEffect};
 
 /// fallible prepare effect
 pub trait IntoFallibleEffect {
@@ -44,44 +45,98 @@ macro_rules! group_prepared_effect {
                 $args: PreparedEffect,
             )*
         {
+            type Extension = ($(<$args as PreparedEffect>::Extension,)*);
+
+            type Graceful = ($(<$args as PreparedEffect>::Graceful,)*);
+
+            type Route = ($(<$args as PreparedEffect>::Route,)*);
+
+            type Server = ($(<$args as PreparedEffect>::Server,)*);
+
             #[allow(non_snake_case)]
-            fn add_extension(&mut self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
+            fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
                 let ($($args,)*) = self;
                 $(
-                    let extension = PreparedEffect::add_extension($args, extension);
+                    let $args = PreparedEffect::split_effect($args);
+                )*
+                (
+                    ($($args.0,)*),
+                    ($($args.1,)*),
+                    ($($args.2,)*),
+                    ($($args.3,)*),
+                )
+            }
+        }
+
+        impl<$($args),*> ExtensionEffect for ($($args,)*)
+        where
+        $(
+            $args: ExtensionEffect,
+        )*
+        {
+            #[allow(non_snake_case)]
+            fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
+                let ($($args,)*) = self;
+                $(
+                    let extension = ExtensionEffect::add_extension($args, extension);
                 )*
                 extension
             }
+        }
+        impl<$($args),*> GracefulEffect for ($($args,)*)
+        where
+        $(
+            $args: GracefulEffect,
+        )*
+        {
             #[allow(non_snake_case)]
-            fn set_graceful(&mut self) -> Option<std::pin::Pin<Box<dyn futures::Future<Output = ()>>>> {
+            fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
                 let ($($args,)*) = self;
                 let ret = None;
                 $(
-                    let ret = match (ret, PreparedEffect::set_graceful($args)) {
+                    let ret = match (ret, GracefulEffect::set_graceful($args)) {
                         (None, None) => None,
                         (None, ret @ Some(_)) | (ret @ Some(_), _) => ret,
                     };
                 )*
                 ret
             }
+        }
+
+        impl<$($args),*> RouteEffect for ($($args,)*)
+        where
+        $(
+            $args: RouteEffect,
+        )*
+        {
             #[allow(non_snake_case)]
-            fn config_serve(&self, server: Builder<AddrIncoming>) -> Builder<AddrIncoming> {
+            fn add_router(self, router: Router) -> Router {
                 let ($($args,)*) = self;
                 $(
-                    let server = PreparedEffect::config_serve($args,server);
-                )*
-                server
-            }
-            #[allow(non_snake_case)]
-            fn add_router(&mut self, router: Router) -> Router {
-                let ($($args,)*) = self;
-                $(
-                    let router = PreparedEffect::add_router($args,router);
+                    let router = RouteEffect::add_router($args, router);
                 )*
                 router
             }
         }
 
+        impl<$($args),*> ServerEffect for ($($args,)*)
+        where
+        $(
+            $args: ServerEffect,
+        )*
+        {
+            #[allow(non_snake_case)]
+            fn config_serve(
+                self,
+                server: hyper::server::Builder<AddrIncoming>,
+            ) -> hyper::server::Builder<AddrIncoming> {
+                let ($($args,)*) = self;
+                $(
+                    let server = ServerEffect::config_serve($args,server);
+                )*
+                server
+            }
+        }
     };
 }
 
@@ -100,3 +155,17 @@ group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K);
 group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L);
 group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M);
 group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X);
+group_prepared_effect!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
+group_prepared_effect!(
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
+);

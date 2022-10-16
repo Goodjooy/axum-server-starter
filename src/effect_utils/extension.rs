@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::PreparedEffect;
+use crate::{ExtensionEffect, PreparedEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) adding extension
 pub struct SetExtension<E>(E);
@@ -25,11 +25,27 @@ where
     }
 }
 
+impl<E> ExtensionEffect for SetExtension<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
+    fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
+        extension.add_extension(self.0)
+    }
+}
 impl<E> PreparedEffect for SetExtension<E>
 where
     E: Clone + Send + Sync + 'static,
 {
-    fn add_extension(&mut self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
-        extension.add_extension(self.0.clone())
+    type Extension = Self;
+
+    type Graceful = ();
+
+    type Route = ();
+
+    type Server = ();
+
+    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
+        (self, (), (), ())
     }
 }

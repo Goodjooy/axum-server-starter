@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use futures::Future;
 
-use crate::PreparedEffect;
+use crate::{GracefulEffect, PreparedEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) set graceful shutdown
 pub struct SetGraceful(Option<Pin<Box<dyn Future<Output = ()>>>>);
@@ -15,8 +15,23 @@ impl SetGraceful {
         Self(Some(Box::pin(future) as Pin<Box<dyn Future<Output = ()>>>))
     }
 }
+
+impl GracefulEffect for SetGraceful {
+    fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
+        self.0
+    }
+}
+
 impl PreparedEffect for SetGraceful {
-    fn set_graceful(&mut self) -> Option<std::pin::Pin<Box<dyn Future<Output = ()>>>> {
-        self.0.take()
+    type Extension = ();
+
+    type Graceful = Self;
+
+    type Route = ();
+
+    type Server = ();
+
+    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
+        ((), (), self, ())
     }
 }
