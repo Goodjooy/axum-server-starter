@@ -1,5 +1,10 @@
 mod error;
-use std::{convert::Infallible, future::IntoFuture, marker::Send, sync::Arc};
+use std::{
+    convert::Infallible,
+    future::IntoFuture,
+    marker::{PhantomData, Send},
+    sync::Arc,
+};
 
 use axum::{
     body::Bytes,
@@ -8,7 +13,7 @@ use axum::{
 };
 
 use futures::{
-    future::{join, ready, Ready},
+    future::{join, ok, Ready},
     Future, FutureExt, TryFutureExt,
 };
 
@@ -26,37 +31,62 @@ use crate::{fn_prepare, server_ready::ServerReady, PrepareHandler};
 
 use self::error::{flatten_result, to_prepare_error};
 pub use self::{
+    configure::{ConfigureServerEffect, LoggerInitialization, ServeAddress},
     error::PrepareError,
     prepare::{
         ExtensionEffect, ExtensionManage, GracefulEffect, Prepare, PreparedEffect, RouteEffect,
         ServerEffect,
     },
-    configure::{ConfigureServerEffect, ServeAddress,LoggerInitialization},
 };
-mod prepare;
 mod configure;
+mod prepare;
+
+pub struct NoLog;
+pub struct LogInit;
 
 /// type for prepare starting
-pub struct ServerPrepare<C, L, FutEffect> {
+pub struct ServerPrepare<C, L, FutEffect, Log = LogInit> {
     config: Arc<C>,
     prepares: FutEffect,
     middleware: ServiceBuilder<L>,
+    _phantom: PhantomData<Log>,
 }
 
-impl<C> ServerPrepare<C, Identity, Ready<Result<(), PrepareError>>> {
-    pub fn with_config(config: C) -> Self
-    where
-        C: ServeAddress,
-    {
-        ServerPrepare {
-            config: Arc::new(config),
-            prepares: ready(Ok(())),
-            middleware: ServiceBuilder::new(),
+impl<C, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
+    pub fn new(config: Arc<C>, prepares: FutEffect, middleware: ServiceBuilder<L>) -> Self {
+        Self {
+            config,
+            prepares,
+            middleware,
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<C: 'static, L, FutEffect, Effect> ServerPrepare<C, L, FutEffect>
+impl<C, L, FutEffect> ServerPrepare<C, L, FutEffect, NoLog>
+where
+    C: LoggerInitialization,
+{
+    pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
+        self.config.init_logger()?;
+        Ok(ServerPrepare::new(
+            self.config,
+            self.prepares,
+            self.middleware,
+        ))
+    }
+}
+
+impl<C> ServerPrepare<C, Identity, Ready<Result<(), PrepareError>>, NoLog> {
+    pub fn with_config(config: C) -> Self
+    where
+        C: ServeAddress,
+    {
+        ServerPrepare::new(Arc::new(config), ok(()), ServiceBuilder::new())
+    }
+}
+
+impl<C: 'static, L, FutEffect, Effect, Log> ServerPrepare<C, L, FutEffect, Log>
 where
     FutEffect: Future<Output = Result<Effect, PrepareError>>,
     Effect: PreparedEffect,
@@ -76,11 +106,7 @@ where
 
         let prepares = join(self.prepares, task).map(flatten_result);
 
-        ServerPrepare {
-            config: self.config,
-            prepares,
-            middleware: self.middleware,
-        }
+        ServerPrepare::new(self.config, prepares, self.middleware)
     }
     /// adding a function-style [Prepare]
     pub fn append_fn<F, Args>(
@@ -99,11 +125,7 @@ where
     /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
     /// axum requirement
     pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>, FutEffect> {
-        ServerPrepare {
-            middleware: self.middleware.layer(layer),
-            config: self.config,
-            prepares: self.prepares,
-        }
+        ServerPrepare::new(self.config, self.prepares, self.middleware.layer(layer))
     }
     /// prepare to start this server
     ///

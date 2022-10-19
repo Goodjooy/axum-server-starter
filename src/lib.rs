@@ -7,8 +7,8 @@ mod prepared_effect;
 mod server_prepare;
 mod server_ready;
 pub use server_prepare::{
-    ConfigureServerEffect, ExtensionEffect, ExtensionManage, GracefulEffect, Prepare, PrepareError,
-    PreparedEffect, RouteEffect, ServeAddress, ServerEffect, ServerPrepare,
+    ConfigureServerEffect, ExtensionEffect, ExtensionManage, GracefulEffect, LoggerInitialization,
+    Prepare, PrepareError, PreparedEffect, RouteEffect, ServeAddress, ServerEffect, ServerPrepare,
 };
 pub use server_ready::ServerReady;
 
