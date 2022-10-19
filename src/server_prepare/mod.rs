@@ -93,11 +93,11 @@ where
     Effect: PreparedEffect,
 {
     /// adding a [Prepare]
-    /// 
+    ///
     /// ## Note
-    /// 
+    ///
     /// the [Prepare] task will be waiting at the same time.
-    /// 
+    ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn append<P>(
         self,
