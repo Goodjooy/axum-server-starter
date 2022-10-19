@@ -1,24 +1,28 @@
 use hyper::server::{conn::AddrIncoming, Builder};
 
-use crate::PreparedEffect;
+use crate::{EffectsCollector, ServerEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) configure [Builder](hyper::server::Builder)
-pub struct ConfigServer(Box<dyn Fn(Builder<AddrIncoming>) -> Builder<AddrIncoming>>);
+pub struct ConfigServer(Box<dyn FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming>>);
 
-impl PreparedEffect for ConfigServer {
-    fn config_serve(
-        &self,
-        server: hyper::server::Builder<AddrIncoming>,
-    ) -> hyper::server::Builder<AddrIncoming> {
+impl ServerEffect for ConfigServer {
+    fn config_serve(self, server: Builder<AddrIncoming>) -> Builder<AddrIncoming> {
         (self.0)(server)
     }
 }
 
 impl ConfigServer {
     /// using a function to configure [Builder](hyper::server::Builder)
-    pub fn new<F>(func: F) -> Self
+    pub fn new<F>(func: F) -> EffectsCollector<(), (), (), ((), ConfigServer)>
     where
-        F: Fn(Builder<AddrIncoming>) -> Builder<AddrIncoming> + 'static,
+        F: FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming> + 'static,
+    {
+        EffectsCollector::new().with_server(Self::new_raw(func))
+    }
+    /// using a function to configure [Builder](hyper::server::Builder)
+    pub fn new_raw<F>(func: F) -> Self
+    where
+        F: FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming> + 'static,
     {
         Self(Box::new(func))
     }

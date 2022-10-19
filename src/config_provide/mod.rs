@@ -24,8 +24,6 @@ mod test {
         }
     }
 
-
-
     #[test]
     fn test_nest_config() {
         let config = Config { db: Database };

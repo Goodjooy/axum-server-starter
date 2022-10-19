@@ -9,8 +9,8 @@ env:
   CRATES_KEY: ${{ secrets.CRATES_KEY }}
 
 jobs:
-  publish:
-    name: Publish
+  publish-macro:
+    name: Publish Macro
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -23,4 +23,18 @@ jobs:
           toolchain: stable
           override: true
       - run: cargo publish -p axum-starter-macro --token ${CRATES_KEY}
+  publish-self:
+    name: Publish This
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - run: cargo publish --token ${CRATES_KEY}
+

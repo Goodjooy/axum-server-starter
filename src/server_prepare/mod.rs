@@ -1,6 +1,9 @@
 mod error;
 use std::{
-    any::type_name, convert::Infallible, error::Error, future::IntoFuture, marker::Send, sync::Arc,
+    convert::Infallible,
+    future::IntoFuture,
+    marker::{PhantomData, Send},
+    sync::Arc,
 };
 
 use axum::{
@@ -9,7 +12,10 @@ use axum::{
     BoxError, Router,
 };
 
-use futures::{stream::iter, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{
+    future::{join, ok, Ready},
+    Future, FutureExt, TryFutureExt,
+};
 
 use hyper::{
     server::{self, conn::AddrIncoming},
@@ -23,48 +29,99 @@ use tower::{
 
 use crate::{fn_prepare, server_ready::ServerReady, PrepareHandler};
 
-use self::error::PrepareError;
+use self::error::{flatten_result, to_prepare_error};
 pub use self::{
-    prepare::{BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect},
-    serve_bind::{ServeAddress, ServerEffect},
+    configure::{ConfigureServerEffect, LoggerInitialization, ServeAddress},
+    error::PrepareError,
+    prepare::{
+        ExtensionEffect, ExtensionManage, GracefulEffect, Prepare, PreparedEffect, RouteEffect,
+        ServerEffect,
+    },
 };
+mod configure;
 mod prepare;
-mod serve_bind;
+
+pub struct NoLog;
+pub struct LogInit;
 
 /// type for prepare starting
-pub struct ServerPrepare<C, L> {
+pub struct ServerPrepare<C, L, FutEffect, Log = LogInit> {
     config: Arc<C>,
-    prepares: Vec<(&'static str, BoxPreparedEffect)>,
-
+    prepares: FutEffect,
     middleware: ServiceBuilder<L>,
+    _phantom: PhantomData<Log>,
 }
 
-impl<C> ServerPrepare<C, Identity> {
-    pub fn with_config(config: C) -> Self
-    where
-        C: ServeAddress,
-    {
-        ServerPrepare {
-            config: Arc::new(config),
-            prepares: Vec::new(),
-            middleware: ServiceBuilder::new(),
+impl<C, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
+    pub fn new(config: Arc<C>, prepares: FutEffect, middleware: ServiceBuilder<L>) -> Self {
+        Self {
+            config,
+            prepares,
+            middleware,
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<C: 'static, L> ServerPrepare<C, L> {
-    /// adding a [Prepare]
-    pub fn append<P>(mut self, prepare: P) -> Self
+impl<C, L, FutEffect> ServerPrepare<C, L, FutEffect, NoLog>
+where
+    C: LoggerInitialization,
+{
+    /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
+    pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
+        self.config.init_logger()?;
+        Ok(ServerPrepare::new(
+            self.config,
+            self.prepares,
+            self.middleware,
+        ))
+    }
+}
+
+impl<C> ServerPrepare<C, Identity, Ready<Result<(), PrepareError>>, NoLog> {
+    pub fn with_config(config: C) -> Self
     where
+        C: ServeAddress,
+    {
+        ServerPrepare::new(Arc::new(config), ok(()), ServiceBuilder::new())
+    }
+}
+
+impl<C: 'static, L, FutEffect, Effect, Log> ServerPrepare<C, L, FutEffect, Log>
+where
+    FutEffect: Future<Output = Result<Effect, PrepareError>>,
+    Effect: PreparedEffect,
+{
+    /// adding a [Prepare]
+    ///
+    /// ## Note
+    ///
+    /// the [Prepare] task will be waiting at the same time.
+    ///
+    /// **DO NOT** block any task for a long time, neither **sync** nor **async**
+    pub fn append<P>(
+        self,
+        prepare: P,
+    ) -> ServerPrepare<C, L, impl Future<Output = Result<impl PreparedEffect, PrepareError>>>
+    where
+        FutEffect: Future,
         P: Prepare<C>,
     {
-        let task = prepare.prepare(Arc::clone(&self.config));
-        self.prepares.push((type_name::<P>(), task));
-        self
+        let task = prepare
+            .prepare(Arc::clone(&self.config))
+            .map_err(to_prepare_error::<P, _>);
+
+        let prepares = join(self.prepares, task).map(flatten_result);
+
+        ServerPrepare::new(self.config, prepares, self.middleware)
     }
     /// adding a function-style [Prepare]
-    pub fn append_fn<F, Args>(self, func: F) -> Self
+    pub fn append_fn<F, Args>(
+        self,
+        func: F,
+    ) -> ServerPrepare<C, L, impl Future<Output = Result<impl PreparedEffect, PrepareError>>>
     where
+        FutEffect: Future,
         F: PrepareHandler<Args, C>,
     {
         self.append(fn_prepare(func))
@@ -74,12 +131,8 @@ impl<C: 'static, L> ServerPrepare<C, L> {
     /// ## note
     /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
     /// axum requirement
-    pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>> {
-        ServerPrepare {
-            middleware: self.middleware.layer(layer),
-            config: self.config,
-            prepares: self.prepares,
-        }
+    pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>, FutEffect> {
+        ServerPrepare::new(self.config, self.prepares, self.middleware.layer(layer))
     }
     /// prepare to start this server
     ///
@@ -92,10 +145,10 @@ impl<C: 'static, L> ServerPrepare<C, L> {
             IntoMakeService<Router<Body>>,
             impl IntoFuture<Output = Result<(), hyper::Error>>,
         >,
-        Box<dyn Error>,
+        PrepareError,
     >
     where
-        C: ServeAddress + ServerEffect,
+        C: ServeAddress + ConfigureServerEffect,
         ServiceBuilder<L>: Layer<Route>,
         <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
@@ -105,41 +158,22 @@ impl<C: 'static, L> ServerPrepare<C, L> {
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
     {
-        let mut effects = iter(self.prepares)
-            .then(|(name, fut)| fut.map_err(move |err| PrepareError::new(name, err)))
-            .try_collect::<Vec<_>>()
-            .await?;
+        let (extension_effect, route_effect, graceful_effect, server_effect) =
+            self.prepares.await?.split_effect();
 
         let router = Router::new()
             // apply prepare effect on router
-            .pipe(|router| {
-                effects
-                    .iter_mut()
-                    .fold(router, |router, effect| effect.add_router(router))
-            })
+            .pipe(|router| route_effect.add_router(router))
             // apply prepare extension
-            .pipe(|router| {
-                effects
-                    .iter_mut()
-                    .fold(router, |router, effect| effect.apply_extension(router))
-            })
+            .pipe(|router| extension_effect.apply_extension(router))
             // adding middleware
             .pipe(|router| router.layer(self.middleware));
 
-        let graceful = effects.iter_mut().fold(None, |graceful, effect| {
-            match (graceful, effect.set_graceful()) {
-                (None, grace @ Some(_)) | (grace @ Some(_), _) => grace,
-                (None, None) => None,
-            }
-        });
+        let graceful = graceful_effect.set_graceful();
 
         let server = server::Server::bind(&ServeAddress::get_address(&*self.config).into())
             // apply effect config server
-            .pipe(|server| {
-                effects
-                    .iter_mut()
-                    .fold(server, |server, effect| effect.config_serve(server))
-            })
+            .pipe(|server| server_effect.config_serve(server))
             // apply configure config server
             .pipe(|server| self.config.effect_server(server))
             .serve(router.into_make_service());
