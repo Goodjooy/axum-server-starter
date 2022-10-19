@@ -98,7 +98,7 @@ impl ProviderField {
                 } else {
                     None
                 },
-                mappers:map_to,
+                mappers: map_to,
                 provide_type: if !provide_ref {
                     ProvideType::Owned
                 } else {

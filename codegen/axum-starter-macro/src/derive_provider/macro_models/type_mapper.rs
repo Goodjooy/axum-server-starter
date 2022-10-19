@@ -1,5 +1,5 @@
 use darling::FromMeta;
-use syn::{Lifetime, Path, Type, spanned::Spanned};
+use syn::{spanned::Spanned, Lifetime, Path, Type};
 
 #[derive(Debug, FromMeta)]
 #[darling(and_then = "TypeMapper::check")]
@@ -15,13 +15,11 @@ impl TypeMapper {
     pub fn check(self) -> Result<TypeMapper, darling::Error> {
         let inner = self
             .lifetime
-            .as_ref()
-            .map(String::as_str)
+            .as_deref()
             .map(syn::parse_str::<Lifetime>)
             .transpose()
             .map_err(darling::Error::from)
-            .map_err(|err|err.with_span(&self.lifetime.span()))
-            ?;
+            .map_err(|err| err.with_span(&self.lifetime.span()))?;
         Ok(TypeMapper {
             lifetime_inner: inner,
             ..self

@@ -15,7 +15,7 @@ pub fn provider_derive(derive_input: DeriveInput) -> darling::Result<proc_macro:
     let provider =
         <ProviderDerive as FromDeriveInput>::from_derive_input(&derive_input)?.into_needs();
 
-    let (code_gen,map_gen) = provider.to_code_gens();
+    let (code_gen, map_gen) = provider.to_code_gens();
 
     Ok(quote::quote! {
         #(#code_gen)*
