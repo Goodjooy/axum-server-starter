@@ -1,6 +1,7 @@
 use std::{any::type_name, error};
 
 #[derive(Debug, thiserror::Error)]
+/// the error while prepare for each [Prepare](crate::Prepare) task
 #[error("prepare error on {ty} : {source}")]
 pub struct PrepareError {
     ty: &'static str,

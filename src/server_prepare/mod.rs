@@ -67,6 +67,7 @@ impl<C, L, FutEffect> ServerPrepare<C, L, FutEffect, NoLog>
 where
     C: LoggerInitialization,
 {
+    /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
         self.config.init_logger()?;
         Ok(ServerPrepare::new(

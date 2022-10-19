@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 use axum::{Extension, Router};
 use hyper::{
-    server::{self, conn::AddrIncoming},
+    server::{conn::AddrIncoming, Builder},
     Body,
 };
 use tap::Pipe;
@@ -23,14 +23,20 @@ pub trait Prepare<Config: 'static> {
 
 /// side effect after a [Prepare]
 pub trait PreparedEffect {
+    /// the effect on extension
     type Extension: ExtensionEffect;
+    /// the effect on setting graceful shutdown signal
     type Graceful: GracefulEffect;
+    /// the effect on changing **root** [Router]
     type Route: RouteEffect;
+    /// the effect on changing [Server](Builder)
     type Server: ServerEffect;
 
+    /// split this [PreparedEffect] into 4 different part
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server);
 }
 
+/// [Prepare] effect may adding `[Extension]`s
 pub trait ExtensionEffect: Sized {
     fn apply_extension(self, router: Router) -> Router {
         router
@@ -45,6 +51,7 @@ pub trait ExtensionEffect: Sized {
     }
 }
 
+/// [Prepare] effect may set a graceful shutdown signal
 pub trait GracefulEffect: Sized {
     /// [Prepare] want to set a graceful shutdown signal returning `[Option::Some]`
     ///
@@ -53,25 +60,27 @@ pub trait GracefulEffect: Sized {
     fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>>;
 }
 
+/// [Prepare] effect may apply [Router::route], [Router::nest], [Router::fallback], [Router::merge] on the root [Router]
 pub trait RouteEffect: Sized {
     /// prepare want to adding routing on the root router
     ///
     /// ## Note
-    /// [PreparedEffect::add_extension] will be applied after [PreparedEffect::add_router] being applied.
+    /// [ExtensionEffect::add_extension] will be applied after [RouteEffect::add_router] being applied.
     ///
-    /// the router adding by a [PrepareEffect](crate::PreparedEffect) can safely using Extension adding by
-    /// [PreparedEffect::add_extension] in the same [PrepareEffect](crate::PreparedEffect)
+    /// the router adding by a [RouteEffect] can safely using Extension adding by
+    /// [ExtensionEffect::add_extension] in the same [PrepareEffect](crate::PreparedEffect)
     fn add_router(self, router: Router) -> Router {
         router
     }
 }
 
+/// [Prepare] effect may change the server configure
 pub trait ServerEffect: Sized {
     /// changing the serve config
     ///
     /// ## Note
     /// the changing of server config might be overwrite by `Config` using [crate::ServerEffect]
-    fn config_serve(self, server: server::Builder<AddrIncoming>) -> server::Builder<AddrIncoming> {
+    fn config_serve(self, server: Builder<AddrIncoming>) -> Builder<AddrIncoming> {
         server
     }
 }

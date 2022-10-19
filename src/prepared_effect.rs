@@ -37,6 +37,7 @@ impl<T: PreparedEffect> IntoFallibleEffect for T {
     }
 }
 
+/// a collector can combine multiply [PreparedEffect](crate::PreparedEffect) into one
 pub struct EffectsCollector<Route = (), Graceful = (), Extension = (), Server = ()> {
     route: Route,
     graceful: Graceful,
@@ -58,6 +59,7 @@ impl<Route, Graceful, Extension, Server: ServerEffect> ServerEffect
 impl<Route, Graceful, Extension: ExtensionEffect, Server> ExtensionEffect
     for EffectsCollector<Route, Graceful, Extension, Server>
 {
+   
     fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
         self.extension.add_extension(extension)
     }
@@ -115,6 +117,7 @@ where
     Extension: ExtensionEffect,
     Server: ServerEffect,
 {
+    /// add a [RouteEffect]
     pub fn with_route<R: RouteEffect>(
         self,
         new_route: R,
@@ -132,7 +135,7 @@ where
             server,
         }
     }
-
+ /// add an [ExtensionEffect]
     pub fn with_extension<E: ExtensionEffect>(
         self,
         new_extension: E,
@@ -150,7 +153,7 @@ where
             server,
         }
     }
-
+/// add a [ServerEffect]
     pub fn with_server<S: ServerEffect>(
         self,
         new_server: S,
@@ -168,6 +171,7 @@ where
             server: (server, new_server),
         }
     }
+    /// add a [GracefulEffect]
     pub fn with_graceful<G: GracefulEffect>(
         self,
         new_graceful: G,
@@ -185,7 +189,7 @@ where
             server,
         }
     }
-
+    /// add anther [PreparedEffect]
     pub fn with_effect<E: PreparedEffect>(
         self,
         effect: E,

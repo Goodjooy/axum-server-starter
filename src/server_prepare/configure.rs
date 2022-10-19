@@ -8,6 +8,9 @@ pub trait ServeAddress {
     fn get_address(&self) -> Self::Address;
 }
 
+/// init the logger of this server by the Config
+/// 
+/// init logger require **sync**
 pub trait LoggerInitialization {
     type Error: error::Error;
     fn init_logger(&self) -> Result<(), Self::Error> {
