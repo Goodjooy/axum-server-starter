@@ -20,6 +20,8 @@ use tower_http::trace::TraceLayer;
 #[derive(Debug, Provider)]
 struct Configure {
     #[provider(ref, transparent)]
+    #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
+    #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
     #[provider(skip)]
     bar: SocketAddr,

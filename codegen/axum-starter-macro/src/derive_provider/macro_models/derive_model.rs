@@ -1,7 +1,7 @@
 use darling::util;
 use syn::Ident;
 
-use crate::derive_provider::code_gen::CodeGen;
+use crate::derive_provider::code_gen::{CodeGen, MapToCodeGen};
 
 use super::fields::{FieldInfo, ProviderField};
 
@@ -33,9 +33,16 @@ pub struct ProviderNeeds {
 }
 
 impl ProviderNeeds {
-    pub fn to_code_gens(&self) -> impl Iterator<Item = CodeGen<'_>> {
-        self.provide
+    pub fn to_code_gens(&self) -> (Vec<CodeGen<'_>>, Vec<MapToCodeGen<'_>>) {
+        let v = self
+            .provide
             .iter()
-            .flat_map(|f| CodeGen::new_list(&self.ident, f))
+            .map(|f| CodeGen::new_list(&self.ident, f))
+            .fold((Vec::new(), Vec::new()), |(mut cv1, mut cv2), (c1, c2)| {
+                cv1.extend(c1);
+                cv2.extend(c2);
+                (cv1, cv2)
+            });
+        v
     }
 }
