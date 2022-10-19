@@ -37,7 +37,7 @@ impl<T: PreparedEffect> IntoFallibleEffect for T {
     }
 }
 
-pub struct EffectsCollect<Route = (), Graceful = (), Extension = (), Server = ()> {
+pub struct EffectsCollector<Route = (), Graceful = (), Extension = (), Server = ()> {
     route: Route,
     graceful: Graceful,
     extension: Extension,
@@ -45,7 +45,7 @@ pub struct EffectsCollect<Route = (), Graceful = (), Extension = (), Server = ()
 }
 
 impl<Route, Graceful, Extension, Server: ServerEffect> ServerEffect
-    for EffectsCollect<Route, Graceful, Extension, Server>
+    for EffectsCollector<Route, Graceful, Extension, Server>
 {
     fn config_serve(
         self,
@@ -56,7 +56,7 @@ impl<Route, Graceful, Extension, Server: ServerEffect> ServerEffect
 }
 
 impl<Route, Graceful, Extension: ExtensionEffect, Server> ExtensionEffect
-    for EffectsCollect<Route, Graceful, Extension, Server>
+    for EffectsCollector<Route, Graceful, Extension, Server>
 {
     fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
         self.extension.add_extension(extension)
@@ -64,7 +64,7 @@ impl<Route, Graceful, Extension: ExtensionEffect, Server> ExtensionEffect
 }
 
 impl<Route, Graceful: GracefulEffect, Extension, Server> GracefulEffect
-    for EffectsCollect<Route, Graceful, Extension, Server>
+    for EffectsCollector<Route, Graceful, Extension, Server>
 {
     fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
         self.graceful.set_graceful()
@@ -72,7 +72,7 @@ impl<Route, Graceful: GracefulEffect, Extension, Server> GracefulEffect
 }
 
 impl<Route, Graceful, Extension, Server> RouteEffect
-    for EffectsCollect<Route, Graceful, Extension, Server>
+    for EffectsCollector<Route, Graceful, Extension, Server>
 where
     Route: RouteEffect,
 {
@@ -82,7 +82,7 @@ where
 }
 
 impl<Route, Graceful, Extension, Server> PreparedEffect
-    for EffectsCollect<Route, Graceful, Extension, Server>
+    for EffectsCollector<Route, Graceful, Extension, Server>
 where
     Route: RouteEffect,
     Graceful: GracefulEffect,
@@ -108,7 +108,7 @@ where
     }
 }
 
-impl<Route, Graceful, Extension, Server> EffectsCollect<Route, Graceful, Extension, Server>
+impl<Route, Graceful, Extension, Server> EffectsCollector<Route, Graceful, Extension, Server>
 where
     Route: RouteEffect,
     Graceful: GracefulEffect,
@@ -118,14 +118,14 @@ where
     pub fn with_route<R: RouteEffect>(
         self,
         new_route: R,
-    ) -> EffectsCollect<(Route, R), Graceful, Extension, Server> {
+    ) -> EffectsCollector<(Route, R), Graceful, Extension, Server> {
         let Self {
             route,
             graceful,
             extension,
             server,
         } = self;
-        EffectsCollect {
+        EffectsCollector {
             route: (route, new_route),
             graceful,
             extension,
@@ -136,14 +136,14 @@ where
     pub fn with_extension<E: ExtensionEffect>(
         self,
         new_extension: E,
-    ) -> EffectsCollect<Route, Graceful, (Extension, E), Server> {
+    ) -> EffectsCollector<Route, Graceful, (Extension, E), Server> {
         let Self {
             route,
             graceful,
             extension,
             server,
         } = self;
-        EffectsCollect {
+        EffectsCollector {
             route,
             graceful,
             extension: (extension, new_extension),
@@ -154,14 +154,14 @@ where
     pub fn with_server<S: ServerEffect>(
         self,
         new_server: S,
-    ) -> EffectsCollect<Route, Graceful, Extension, (Server, S)> {
+    ) -> EffectsCollector<Route, Graceful, Extension, (Server, S)> {
         let Self {
             route,
             graceful,
             extension,
             server,
         } = self;
-        EffectsCollect {
+        EffectsCollector {
             route,
             graceful,
             extension,
@@ -171,14 +171,14 @@ where
     pub fn with_graceful<G: GracefulEffect>(
         self,
         new_graceful: G,
-    ) -> EffectsCollect<Route, (Graceful, G), Extension, Server> {
+    ) -> EffectsCollector<Route, (Graceful, G), Extension, Server> {
         let Self {
             route,
             graceful,
             extension,
             server,
         } = self;
-        EffectsCollect {
+        EffectsCollector {
             route,
             graceful: (graceful, new_graceful),
             extension,
@@ -189,7 +189,7 @@ where
     pub fn with_effect<E: PreparedEffect>(
         self,
         effect: E,
-    ) -> EffectsCollect<
+    ) -> EffectsCollector<
         (Route, E::Route),
         (Graceful, E::Graceful),
         (Extension, E::Extension),
@@ -203,7 +203,7 @@ where
         } = self;
         let effect = effect.split_effect();
 
-        EffectsCollect {
+        EffectsCollector {
             route: (route, effect.1),
             graceful: (graceful, effect.2),
             extension: (extension, effect.0),
@@ -212,7 +212,7 @@ where
     }
 }
 
-impl EffectsCollect {
+impl EffectsCollector {
     pub fn new() -> Self {
         Self {
             route: (),

@@ -10,7 +10,7 @@ use axum_starter::{
     graceful::SetGraceful,
     prepare,
     router::{Fallback, Nest, Route},
-    ConfigureServerEffect, EffectsCollect, PreparedEffect, Provider, ServeAddress, ServerPrepare,
+    ConfigureServerEffect, EffectsCollector, PreparedEffect, Provider, ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
 use tokio::sync::oneshot;
@@ -68,7 +68,7 @@ fn echo() -> impl PreparedEffect {
 }
 #[prepare(C)]
 fn routers() -> impl PreparedEffect {
-    EffectsCollect::new()
+    EffectsCollector::new()
         .with_route(Nest::new(
             "/aac/b",
             Router::new().route(

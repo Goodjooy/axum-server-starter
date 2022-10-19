@@ -2,17 +2,17 @@ use std::pin::Pin;
 
 use futures::Future;
 
-use crate::{EffectsCollect, GracefulEffect};
+use crate::{EffectsCollector, GracefulEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) set graceful shutdown
 pub struct SetGraceful(Option<Pin<Box<dyn Future<Output = ()>>>>);
 
 impl SetGraceful {
-    pub fn new<F>(future: F) -> EffectsCollect<(), ((), SetGraceful)>
+    pub fn new<F>(future: F) -> EffectsCollector<(), ((), SetGraceful)>
     where
         F: Future<Output = ()> + 'static,
     {
-        EffectsCollect::new().with_graceful(Self::new_raw(future))
+        EffectsCollector::new().with_graceful(Self::new_raw(future))
     }
     pub fn new_raw<F>(future: F) -> Self
     where

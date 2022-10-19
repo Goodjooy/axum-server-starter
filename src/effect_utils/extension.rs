@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{EffectsCollect, ExtensionEffect};
+use crate::{EffectsCollector, ExtensionEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) adding extension
 pub struct SetExtension<E>(E);
@@ -10,7 +10,7 @@ where
     Arc<E>: Clone + Send + Sync + 'static,
 {
     /// [PreparedEffect](crate::PreparedEffect) adding extension with [Arc](std::sync::Arc) wrapping
-    pub fn arc(state: E) -> EffectsCollect<(), (), ((), SetExtension<Arc<E>>)> {
+    pub fn arc(state: E) -> EffectsCollector<(), (), ((), SetExtension<Arc<E>>)> {
         SetExtension::<Arc<E>>::new(Arc::new(state))
     }
 
@@ -24,8 +24,8 @@ where
     E: Clone + Send + Sync + 'static,
 {
     /// [PreparedEffect](crate::PreparedEffect) adding extension
-    pub fn new(state: E) -> EffectsCollect<(), (), ((), SetExtension<E>)> {
-        EffectsCollect::new().with_extension(Self::new_raw(state))
+    pub fn new(state: E) -> EffectsCollector<(), (), ((), SetExtension<E>)> {
+        EffectsCollector::new().with_extension(Self::new_raw(state))
     }
 
     pub fn new_raw(state: E)->Self{

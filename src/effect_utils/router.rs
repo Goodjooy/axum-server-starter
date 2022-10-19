@@ -4,7 +4,7 @@ use axum::response::Response;
 use hyper::{Body, Request};
 use tower::Service;
 
-use crate::{EffectsCollect, RouteEffect};
+use crate::{EffectsCollector, RouteEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) add route
 ///
@@ -13,12 +13,12 @@ use crate::{EffectsCollect, RouteEffect};
 pub struct Route<R>(&'static str, R);
 
 impl<R> Route<R> {
-    pub fn new(router: &'static str, service: R) -> EffectsCollect<((), Route<R>)>
+    pub fn new(router: &'static str, service: R) -> EffectsCollector<((), Route<R>)>
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
     {
-        EffectsCollect::new().with_route(Self::new_raw(router, service))
+        EffectsCollector::new().with_route(Self::new_raw(router, service))
     }
 
     pub fn new_raw(router: &'static str, service: R) -> Self
@@ -47,11 +47,11 @@ where
 pub struct Merge<R>(R);
 
 impl<R> Merge<R> {
-    pub fn new(merge: R) -> EffectsCollect<((), Merge<R>)>
+    pub fn new(merge: R) -> EffectsCollector<((), Merge<R>)>
     where
         axum::Router: From<R>,
     {
-        EffectsCollect::new().with_route(Self::new_raw(merge))
+        EffectsCollector::new().with_route(Self::new_raw(merge))
     }
     pub fn new_raw(merge: R) -> Self
     where
@@ -79,12 +79,12 @@ pub struct Nest<R> {
 }
 
 impl<R> Nest<R> {
-    pub fn new(path: &'static str, router: R) -> EffectsCollect<((), Nest<R>)>
+    pub fn new(path: &'static str, router: R) -> EffectsCollector<((), Nest<R>)>
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
     {
-        EffectsCollect::new().with_route(Self::new_raw(path, router))
+        EffectsCollector::new().with_route(Self::new_raw(path, router))
     }
     pub fn new_raw(path: &'static str, router: R) -> Self
     where
@@ -114,12 +114,12 @@ pub struct Fallback<R> {
 }
 
 impl<R> Fallback<R> {
-    pub fn new(service: R) -> EffectsCollect<((), Fallback<R>)>
+    pub fn new(service: R) -> EffectsCollector<((), Fallback<R>)>
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
     {
-        EffectsCollect::new().with_route(Self::new_raw(service))
+        EffectsCollector::new().with_route(Self::new_raw(service))
     }
     pub fn new_raw(service: R) -> Self
     where
