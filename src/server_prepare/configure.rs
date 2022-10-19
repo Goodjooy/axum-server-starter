@@ -9,7 +9,7 @@ pub trait ServeAddress {
 }
 
 /// init the logger of this server by the Config
-/// 
+///
 /// init logger require **sync**
 pub trait LoggerInitialization {
     type Error: error::Error;

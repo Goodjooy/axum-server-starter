@@ -59,7 +59,6 @@ impl<Route, Graceful, Extension, Server: ServerEffect> ServerEffect
 impl<Route, Graceful, Extension: ExtensionEffect, Server> ExtensionEffect
     for EffectsCollector<Route, Graceful, Extension, Server>
 {
-   
     fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
         self.extension.add_extension(extension)
     }
@@ -135,7 +134,7 @@ where
             server,
         }
     }
- /// add an [ExtensionEffect]
+    /// add an [ExtensionEffect]
     pub fn with_extension<E: ExtensionEffect>(
         self,
         new_extension: E,
@@ -153,7 +152,7 @@ where
             server,
         }
     }
-/// add a [ServerEffect]
+    /// add a [ServerEffect]
     pub fn with_server<S: ServerEffect>(
         self,
         new_server: S,
