@@ -5,6 +5,8 @@ use syn::Ident;
 
 use crate::utils::snake_to_upper;
 
+use super::type_mapper::TypeMapper;
+
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(provider), and_then = "ProviderField::check_correct")]
 pub struct ProviderField {
@@ -26,7 +28,7 @@ pub struct ProviderField {
     rename: Option<Ident>,
 
     #[darling(default, multiple)]
-    aliases: Vec<syn::Ident>,
+    map_to: Vec<TypeMapper>,
 }
 
 impl ProviderField {
@@ -37,7 +39,7 @@ impl ProviderField {
             transparent,
             mut skip,
             rename,
-            aliases,
+            map_to: aliases,
             provide_ref,
         } = self;
 
@@ -66,7 +68,7 @@ impl ProviderField {
             transparent,
             skip,
             rename,
-            aliases,
+            map_to: aliases,
             provide_ref,
         })
     }
@@ -78,7 +80,7 @@ impl ProviderField {
             transparent,
             skip,
             rename,
-            aliases,
+            map_to,
             provide_ref,
         } = self;
         let ident = ident?;
@@ -96,7 +98,7 @@ impl ProviderField {
                 } else {
                     None
                 },
-                aliases,
+                mappers: map_to,
                 provide_type: if !provide_ref {
                     ProvideType::Owned
                 } else {
@@ -113,8 +115,9 @@ pub struct FieldInfo {
 
     pub provide_type: ProvideType,
     pub wrapper_name: Option<Ident>,
-    pub aliases: Vec<Ident>,
+    pub mappers: Vec<TypeMapper>,
 }
+
 #[derive(Debug, Clone, Copy)]
 pub enum ProvideType {
     Ref,

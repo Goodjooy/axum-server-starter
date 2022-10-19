@@ -1,9 +1,6 @@
 use darling::ToTokens;
 
-use proc_macro2::TokenStream;
-use syn::{Lifetime, ReturnType, Type};
-
-use crate::utils::verify_can_bound;
+use syn::{Lifetime, Type};
 
 use super::inputs::input_fn::InputFn;
 
@@ -14,7 +11,6 @@ pub struct CodeGen<'r> {
 
     call_args: Vec<&'r Type>,
     args_lifetime: Option<&'r Lifetime>,
-    call_ret: &'r ReturnType,
 }
 
 impl<'r> CodeGen<'r> {
@@ -24,8 +20,8 @@ impl<'r> CodeGen<'r> {
         InputFn {
             is_async,
             fn_name,
-            ret_type,
             args_type,
+            ..
         }: InputFn<'r>,
     ) -> Self {
         Self {
@@ -33,7 +29,6 @@ impl<'r> CodeGen<'r> {
             prepare_name,
             prepare_call: fn_name,
             call_args: args_type,
-            call_ret: ret_type,
             args_lifetime: arg_lifetime.as_ref(),
         }
     }
@@ -46,16 +41,8 @@ impl<'r> ToTokens for CodeGen<'r> {
             prepare_name,
             prepare_call,
             call_args,
-            call_ret,
             args_lifetime,
         } = self;
-
-        // prepare type
-        let token = quote::quote! {
-            pub struct #prepare_name;
-        };
-
-        tokens.extend(token);
 
         let bound_lifetime = match args_lifetime {
             Some(l) => quote::quote!(#l),
@@ -68,21 +55,6 @@ impl<'r> ToTokens for CodeGen<'r> {
             }
         });
 
-        let ret_bound = match call_ret {
-            ReturnType::Default => quote::quote! {
-                () : ::axum_starter::IntoFallibleEffect + 'static,
-            },
-            ReturnType::Type(_, ty) => {
-                if verify_can_bound(&ty) {
-                    quote::quote! {
-                        #ty : ::axum_starter::IntoFallibleEffect + 'static,
-                    }
-                } else {
-                    TokenStream::new()
-                }
-            }
-        };
-
         let args_fetch = call_args.iter().map(|_ty| {
             quote::quote! {
                 ::axum_starter::Provider::provide(std::ops::Deref::deref(&config))
@@ -94,29 +66,19 @@ impl<'r> ToTokens for CodeGen<'r> {
         } else {
             None
         };
-
         // impl prepare
         let token = quote::quote! {
-            impl<Config> ::axum_starter::Prepare<Config> for #prepare_name
+            #[allow(non_snake_case)]
+            pub async fn #prepare_name<Config>(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
             where
                 Config : 'static,
                 #(#impl_bounds)*
-                #ret_bound
             {
-                fn prepare(self, config: std::sync::Arc<Config>) -> ::axum_starter::BoxPreparedEffect{
-                    use std::boxed::Box;
-                    Box::pin(async move {
-                        let ret = #prepare_call(
-                            #(
-                                #args_fetch
-                            ),*
-                        )# awaiting;
-
-                        ::axum_starter::IntoFallibleEffect::into_effect(ret)
-                        .map(|effect| Box::new(effect) as Box<dyn ::axum_starter::PreparedEffect>)
-                        .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
-                    })
-                }
+                #prepare_call(
+                    #(
+                        #args_fetch
+                    ),*
+                )# awaiting
             }
         };
         tokens.extend(token)

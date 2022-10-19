@@ -38,6 +38,7 @@ pub fn prepare_macro(
 
     Ok(quote::quote! {
         # code_gen
+        #[allow(clippy::needless_lifetimes)]
         # item_fn
     }
     .into())

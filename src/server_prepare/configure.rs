@@ -1,3 +1,5 @@
+use std::error;
+
 use hyper::server::conn::AddrIncoming;
 
 /// get the address this server are going to bind with
@@ -6,9 +8,19 @@ pub trait ServeAddress {
     fn get_address(&self) -> Self::Address;
 }
 
+/// init the logger of this server by the Config
+///
+/// init logger require **sync**
+pub trait LoggerInitialization {
+    type Error: error::Error;
+    fn init_logger(&self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
 /// change the server configure, this operate can overwrite
 /// [PrepareEffect](crate::PreparedEffect)
-pub trait ServerEffect {
+pub trait ConfigureServerEffect {
     fn effect_server(
         &self,
         server: hyper::server::Builder<AddrIncoming>,
