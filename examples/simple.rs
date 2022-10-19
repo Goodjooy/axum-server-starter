@@ -10,7 +10,8 @@ use axum_starter::{
     graceful::SetGraceful,
     prepare,
     router::{Fallback, Nest, Route},
-    ConfigureServerEffect, EffectsCollector, PreparedEffect, Provider, ServeAddress, ServerPrepare,
+    ConfigureServerEffect, EffectsCollector, LoggerInitialization, PreparedEffect, Provider,
+    ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
 use tokio::sync::oneshot;
@@ -25,6 +26,14 @@ struct Configure {
     bar: SocketAddr,
 
     foo_bar: (i32, i32),
+}
+
+impl LoggerInitialization for Configure {
+    type Error = log::SetLoggerError;
+
+    fn init_logger(&self) -> Result<(), Self::Error> {
+        simple_logger::init()
+    }
 }
 
 impl ServeAddress for Configure {
@@ -48,17 +57,12 @@ impl Configure {
 }
 // prepares
 
-/// using `#[prepare]`
-#[prepare(Logger)]
-fn start_logger() -> Result<(), log::SetLoggerError> {
-    simple_logger::init()
-}
-
 /// if need ref args ,adding a lifetime
 #[prepare(ShowFoo 'arg)]
 fn show_foo(foo: &'arg String) {
     println!("this is Foo {foo}")
 }
+/// using `#[prepare]`
 #[prepare(EchoRouter)]
 fn echo() -> impl PreparedEffect {
     Route::new(
@@ -109,7 +113,8 @@ async fn main() {
 
 async fn start() {
     ServerPrepare::with_config(Configure::new())
-        .append(Logger)
+        .init_logger()
+        .expect("Init Logger Failure")
         .append(ShowFoo)
         .append(C)
         .append_fn(show)
