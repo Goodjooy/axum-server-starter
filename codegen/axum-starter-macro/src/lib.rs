@@ -35,7 +35,7 @@ mod utils;
 /// - using `ref` to impl `Provider` provide reference instant of Owned (with clone)  
 /// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type
 /// - using `skip` to not impl `Provider` for this field
-/// - using `map_to(ty , by)` to adding extra provide for [Type](syn::Type) by the giving function, if the type need lifetime mark, 
+/// - using `map_to(ty , by)` to adding extra provide for [Type](syn::Type) by the giving function, if the type need lifetime mark,
 /// adding `lifetime = "'a"`, then using`'a` in your type for example `& 'a str`
 #[proc_macro_derive(Provider, attributes(provider))]
 pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
