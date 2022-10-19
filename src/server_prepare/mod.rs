@@ -6,11 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use axum::{
-    body::Bytes,
-    routing::{IntoMakeService, Route},
-    BoxError, Router,
-};
+use axum::{body::Bytes, routing::Route, BoxError, Router};
 
 use futures::{
     future::{join, ok, Ready},
@@ -18,7 +14,7 @@ use futures::{
 };
 
 use hyper::{
-    server::{self, conn::AddrIncoming},
+    server::{self},
     Body, Request, Response,
 };
 use tap::Pipe;
@@ -139,14 +135,7 @@ where
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
     pub async fn prepare_start<NewResBody>(
         self,
-    ) -> Result<
-        ServerReady<
-            AddrIncoming,
-            IntoMakeService<Router<Body>>,
-            impl IntoFuture<Output = Result<(), hyper::Error>>,
-        >,
-        PrepareError,
-    >
+    ) -> Result<ServerReady<impl IntoFuture<Output = Result<(), hyper::Error>>>, PrepareError>
     where
         C: ServeAddress + ConfigureServerEffect,
         ServiceBuilder<L>: Layer<Route>,
