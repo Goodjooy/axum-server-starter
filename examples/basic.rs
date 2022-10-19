@@ -2,16 +2,22 @@ use std::{
     any::Any,
     future::Future,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    pin::Pin,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
 
-use axum::{body::BoxBody, extract::Path, response::IntoResponse, routing::get, Extension};
+use axum::{
+    body::BoxBody,
+    extract::Path,
+    response::IntoResponse,
+    routing::{get, MethodRouter},
+    Extension,
+};
 use axum_starter::{
-    ExtensionManage, PreparedEffect, Provider, ServeAddress, ServerEffect, ServerPrepare,
+    extension::SetExtension, graceful::SetGraceful, router::Route, ConfigureServerEffect,
+    PreparedEffect, Provider, ServeAddress, ServerPrepare,
 };
 use hyper::Response;
 use tokio::sync::oneshot;
@@ -72,7 +78,7 @@ impl ServeAddress for Config {
     }
 }
 
-impl ServerEffect for Config {}
+impl ConfigureServerEffect for Config {}
 
 fn show_address(addr: SocketAddr) -> impl Future<Output = ()> {
     async move {
@@ -86,23 +92,34 @@ async fn echo_handler() -> EchoEffect {
 
 struct EchoEffect;
 impl PreparedEffect for EchoEffect {
-    fn add_extension(&mut self, extension: ExtensionManage) -> ExtensionManage {
-        let state = Arc::new(AtomicUsize::new(0));
+    type Extension = SetExtension<Arc<AtomicUsize>>;
 
-        extension.add_extension(state)
-    }
+    type Graceful = ();
 
-    fn add_router(&mut self, router: axum::Router) -> axum::Router {
-        router.route(
-            "/:path",
-            get(
-                |Path(path): Path<String>, Extension(count): Extension<Arc<AtomicUsize>>| async move{
-                    println!("incoming");
-                    let now = count.fetch_add(1, Ordering::Relaxed);
-                    format!("Welcome {},you are No.{}", path, now+1)
-                },
+    type Route = (Route<MethodRouter>, Route<MethodRouter>);
+
+    type Server = ();
+
+    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
+        (
+            SetExtension::arc_raw(AtomicUsize::new(0)),
+            (
+                Route::new_raw(
+                    "/:path",
+                    get(
+                        |Path(path): Path<String>,
+                         Extension(count): Extension<Arc<AtomicUsize>>| async move {
+                            println!("incoming");
+                            let now = count.fetch_add(1, Ordering::Relaxed);
+                            format!("Welcome {},you are No.{}", path, now + 1)
+                        },
+                    ),
+                ),
+                Route::new_raw("/f/panic", get(|| async { panic!("Not a api") })),
             ),
-        ).route("/f/panic",get(|| async{panic!("Not a api")}))
+            (),
+            (),
+        )
     }
 }
 
@@ -110,7 +127,7 @@ async fn print_init() {
     println!("Initial");
 }
 
-async fn ctrl_c_stop() -> CtrlCEffect {
+async fn ctrl_c_stop() -> CtrlCEffect<impl Future<Output = ()>> {
     let (tx, rx) = oneshot::channel();
     tokio::spawn(async move {
         match tokio::signal::ctrl_c().await {
@@ -122,19 +139,27 @@ async fn ctrl_c_stop() -> CtrlCEffect {
     });
     tokio::task::yield_now().await;
 
-    let fut = Box::pin(async move {
+    let fut = async move {
         rx.await.ok();
         println!("recv ctrl c");
-    });
-    CtrlCEffect { fut: Some(fut) }
+    };
+    CtrlCEffect { fut }
 }
 
-struct CtrlCEffect {
-    fut: Option<Pin<Box<dyn Future<Output = ()>>>>,
+struct CtrlCEffect<F: Future<Output = ()>> {
+    fut: F,
 }
 
-impl PreparedEffect for CtrlCEffect {
-    fn set_graceful(&mut self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
-        self.fut.take()
+impl<F: Future<Output = ()> + 'static> PreparedEffect for CtrlCEffect<F> {
+    type Extension = ();
+
+    type Graceful = SetGraceful;
+
+    type Route = ();
+
+    type Server = ();
+
+    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
+        ((), (), SetGraceful::new_raw(self.fut), ())
     }
 }

@@ -31,10 +31,13 @@ use tower::{
 
 use crate::{fn_prepare, server_ready::ServerReady, IntoFallibleEffect, PrepareHandler};
 
-use self::error::PrepareError;
 pub use self::{
-    prepare::{BoxPreparedEffect, ExtensionManage, Prepare, PreparedEffect},
-    serve_bind::{ServeAddress, ServerEffect},
+    error::PrepareError,
+    prepare::{
+        ExtensionEffect, ExtensionManage, GracefulEffect, Prepare, PreparedEffect, RouteEffect,
+        ServerEffect,
+    },
+    serve_bind::{ConfigureServerEffect, ServeAddress},
 };
 mod prepare;
 mod serve_bind;
@@ -144,7 +147,7 @@ where
         PrepareError,
     >
     where
-        C: ServeAddress + ServerEffect,
+        C: ServeAddress + ConfigureServerEffect,
         ServiceBuilder<L>: Layer<Route>,
         <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
@@ -154,21 +157,22 @@ where
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
     {
-        let mut effects = self.prepares.await?;
+        let (extension_effect, route_effect, graceful_effect, server_effect) =
+            self.prepares.await?.split_effect();
 
         let router = Router::new()
             // apply prepare effect on router
-            .pipe(|router| effects.add_router(router))
+            .pipe(|router| route_effect.add_router(router))
             // apply prepare extension
-            .pipe(|router| effects.apply_extension(router))
+            .pipe(|router| extension_effect.apply_extension(router))
             // adding middleware
             .pipe(|router| router.layer(self.middleware));
 
-        let graceful = effects.set_graceful();
+        let graceful = graceful_effect.set_graceful();
 
         let server = server::Server::bind(&ServeAddress::get_address(&*self.config).into())
             // apply effect config server
-            .pipe(|server| effects.config_serve(server))
+            .pipe(|server| server_effect.config_serve(server))
             // apply configure config server
             .pipe(|server| self.config.effect_server(server))
             .serve(router.into_make_service());

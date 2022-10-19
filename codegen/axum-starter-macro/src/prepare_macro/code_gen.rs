@@ -69,7 +69,7 @@ impl<'r> ToTokens for CodeGen<'r> {
         // impl prepare
         let token = quote::quote! {
             #[allow(non_snake_case)]
-            async fn #prepare_name<Config>(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
+            pub async fn #prepare_name<Config>(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
             where
                 Config : 'static,
                 #(#impl_bounds)*

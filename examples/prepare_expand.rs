@@ -9,8 +9,8 @@ use std::{
 
 use axum::{extract::Path, routing::get, Extension};
 use axum_starter::{
-    extension::SetExtension, graceful::SetGraceful, prepare, router::Route, PreparedEffect,
-    Provider, ServeAddress, ServerEffect, ServerPrepare,
+    extension::SetExtension, graceful::SetGraceful, prepare, router::Route, ConfigureServerEffect,
+    PreparedEffect, Provider, ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
 use tokio::sync::oneshot;
@@ -81,7 +81,7 @@ pub struct Config {
     name: String,
 }
 
-impl ServerEffect for Config {}
+impl ConfigureServerEffect for Config {}
 
 impl ServeAddress for Config {
     type Address = SocketAddr;

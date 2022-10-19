@@ -1,9 +1,16 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-use axum::{extract::Path, routing::get};
+use axum::{
+    extract::{OriginalUri, Path},
+    handler::Handler,
+    routing::get,
+    Router,
+};
 use axum_starter::{
-    graceful::SetGraceful, prepare, router::Route, PreparedEffect, Provider, ServeAddress,
-    ServerEffect, ServerPrepare,
+    graceful::SetGraceful,
+    prepare,
+    router::{Fallback, Nest, Route},
+    ConfigureServerEffect, EffectsCollector, PreparedEffect, Provider, ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
 use tokio::sync::oneshot;
@@ -28,7 +35,7 @@ impl ServeAddress for Configure {
     }
 }
 
-impl ServerEffect for Configure {}
+impl ConfigureServerEffect for Configure {}
 
 impl Configure {
     pub fn new() -> Self {
@@ -58,6 +65,21 @@ fn echo() -> impl PreparedEffect {
         "/:echo",
         get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
     )
+}
+#[prepare(C)]
+fn routers() -> impl PreparedEffect {
+    EffectsCollector::new()
+        .with_route(Nest::new(
+            "/aac/b",
+            Router::new().route(
+                "/a",
+                get(|OriginalUri(uri): OriginalUri| async move { format!("welcome {uri}") }),
+            ),
+        ))
+        .with_route(Fallback::new(Handler::into_service(|| async { "oops" })))
+        .with_server(axum_starter::service::ConfigServer::new(|s| {
+            s.http1_only(true)
+        }))
 }
 
 async fn show(FooBar((x, y)): FooBar) {
@@ -89,6 +111,7 @@ async fn start() {
     ServerPrepare::with_config(Configure::new())
         .append(Logger)
         .append(ShowFoo)
+        .append(C)
         .append_fn(show)
         .append_fn(graceful_shutdown)
         .append(EchoRouter)
