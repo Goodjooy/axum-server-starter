@@ -1,4 +1,4 @@
-use std::error;
+use std::{any::type_name, error};
 
 #[derive(Debug, thiserror::Error)]
 #[error("prepare error on {ty} : {source}")]
@@ -15,4 +15,11 @@ impl PrepareError {
             source: src,
         }
     }
+}
+pub fn to_prepare_error<P, E: std::error::Error + 'static>(err: E) -> PrepareError {
+    PrepareError::new(type_name::<P>(), Box::new(err))
+}
+
+pub fn flatten_result<T1, T2, E>((l, r): (Result<T1, E>, Result<T2, E>)) -> Result<(T1, T2), E> {
+    Ok((l?, r?))
 }
