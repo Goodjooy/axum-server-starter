@@ -4,14 +4,12 @@ use axum::{routing::IntoMakeService, Router};
 use hyper::{server::conn::AddrIncoming, Body};
 
 /// all prepare task are done , the server is ready for launch
-pub enum ServerReady<I, M, G> {
-    Server(hyper::server::Server<I, M>),
+pub enum ServerReady<G> {
+    Server(hyper::server::Server<AddrIncoming, IntoMakeService<Router<Body>>>),
     Graceful(G),
 }
 
-impl<G: IntoFuture<Output = hyper::Result<()>>>
-    ServerReady<AddrIncoming, IntoMakeService<Router<Body>>, G>
-{
+impl<G: IntoFuture<Output = hyper::Result<()>>> ServerReady<G> {
     /// start this server
     pub async fn launch(self) -> hyper::Result<()> {
         match self {
