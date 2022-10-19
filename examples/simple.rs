@@ -14,7 +14,7 @@ use axum_starter::{
     ServeAddress, ServerPrepare,
 };
 use futures::FutureExt;
-use tokio::sync::oneshot;
+
 use tower_http::trace::TraceLayer;
 
 /// configure for server starter
@@ -61,8 +61,8 @@ impl Configure {
 
 /// if need ref args ,adding a lifetime
 #[prepare(ShowFoo 'arg)]
-fn show_foo(foo: &'arg String) {
-    println!("this is Foo {foo}")
+fn show_foo(f: &'arg String) {
+    println!("this is Foo {f}")
 }
 /// using `#[prepare]`
 #[prepare(EchoRouter)]
@@ -94,18 +94,11 @@ async fn show(FooBar((x, y)): FooBar) {
 
 /// function style prepare
 async fn graceful_shutdown() -> impl PreparedEffect {
-    let (tx, rx) = oneshot::channel();
-    tokio::spawn(async move {
-        match tokio::signal::ctrl_c().await {
-            _ => {
-                println!("recv ctrl c");
-                tx.send(())
-            }
-        }
-    });
-    tokio::task::yield_now().await;
-
-    SetGraceful::new(rx.map(|_| ()))
+    SetGraceful::new(
+        tokio::signal::ctrl_c()
+            .map(|_| println!("recv Exit msg"))
+            .map(|_| ()),
+    )
 }
 
 #[tokio::main]
