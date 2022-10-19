@@ -16,6 +16,6 @@ pub use config_provide::provider::Provider;
 pub use prepare_handler::{fn_prepare, FnPrepare, PrepareHandler};
 
 pub use axum_starter_macro::{prepare, Provider};
-pub use prepared_effect::{IntoFallibleEffect,EffectsCollector};
+pub use prepared_effect::{EffectsCollector, IntoFallibleEffect};
 
 pub use effect_utils::{extension, graceful, router, service};

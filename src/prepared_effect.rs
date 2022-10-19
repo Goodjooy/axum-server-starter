@@ -189,12 +189,7 @@ where
     pub fn with_effect<E: PreparedEffect>(
         self,
         effect: E,
-    ) -> EffectsCollector<
-        (Route, E::Route),
-        (Graceful, E::Graceful),
-        (Extension, E::Extension),
-        (Server, E::Server),
-    > {
+    ) -> CombineEffects<Route, Graceful, Extension, Server, E> {
         let Self {
             route,
             graceful,
@@ -209,6 +204,19 @@ where
             extension: (extension, effect.0),
             server: (server, effect.3),
         }
+    }
+}
+
+type CombineEffects<Route, Graceful, Extension, Server, E> = EffectsCollector<
+    (Route, <E as PreparedEffect>::Route),
+    (Graceful, <E as PreparedEffect>::Graceful),
+    (Extension, <E as PreparedEffect>::Extension),
+    (Server, <E as PreparedEffect>::Server),
+>;
+
+impl Default for EffectsCollector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

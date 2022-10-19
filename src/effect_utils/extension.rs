@@ -14,7 +14,7 @@ where
         SetExtension::<Arc<E>>::new(Arc::new(state))
     }
 
-    pub fn arc_raw(state: E)->Self{
+    pub fn arc_raw(state: E) -> Self {
         Self::new_raw(Arc::new(state))
     }
 }
@@ -28,7 +28,7 @@ where
         EffectsCollector::new().with_extension(Self::new_raw(state))
     }
 
-    pub fn new_raw(state: E)->Self{
+    pub fn new_raw(state: E) -> Self {
         Self(state)
     }
 }
