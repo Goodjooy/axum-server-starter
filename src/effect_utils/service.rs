@@ -1,6 +1,6 @@
 use hyper::server::{conn::AddrIncoming, Builder};
 
-use crate::{prepared_effect::serve_only, PreparedEffect, ServerEffect};
+use crate::{EffectsCollect, ServerEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) configure [Builder](hyper::server::Builder)
 pub struct ConfigServer(Box<dyn FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming>>);
@@ -11,23 +11,16 @@ impl ServerEffect for ConfigServer {
     }
 }
 
-impl PreparedEffect for ConfigServer {
-    type Extension = ();
-
-    type Graceful = ();
-
-    type Route = ();
-
-    type Server = Self;
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        serve_only::<Self>(self)
-    }
-}
-
 impl ConfigServer {
     /// using a function to configure [Builder](hyper::server::Builder)
-    pub fn new<F>(func: F) -> Self
+    pub fn new<F>(func: F) -> EffectsCollect<(), (), (), ((), ConfigServer)>
+    where
+        F: FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming> + 'static,
+    {
+        EffectsCollect::new().with_server(Self::new_raw(func))
+    }
+    /// using a function to configure [Builder](hyper::server::Builder)
+    pub fn new_raw<F>(func: F) -> Self
     where
         F: FnOnce(Builder<AddrIncoming>) -> Builder<AddrIncoming> + 'static,
     {

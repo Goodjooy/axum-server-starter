@@ -4,7 +4,7 @@ use axum::response::Response;
 use hyper::{Body, Request};
 use tower::Service;
 
-use crate::{PreparedEffect, RouteEffect, prepared_effect::route_only};
+use crate::{EffectsCollect, RouteEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) add route
 ///
@@ -13,30 +13,20 @@ use crate::{PreparedEffect, RouteEffect, prepared_effect::route_only};
 pub struct Route<R>(&'static str, R);
 
 impl<R> Route<R> {
-    pub fn new(router: &'static str, service: R) -> Self
+    pub fn new(router: &'static str, service: R) -> EffectsCollect<((), Route<R>)>
+    where
+        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
+        R::Future: Send + 'static,
+    {
+        EffectsCollect::new().with_route(Self::new_raw(router, service))
+    }
+
+    pub fn new_raw(router: &'static str, service: R) -> Self
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
     {
         Self(router, service)
-    }
-}
-
-impl<R> PreparedEffect for Route<R>
-where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
-{
-    type Extension = ();
-
-    type Graceful = ();
-
-    type Route = Self;
-
-    type Server = ();
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        route_only::<Self>(self)
     }
 }
 
@@ -57,7 +47,13 @@ where
 pub struct Merge<R>(R);
 
 impl<R> Merge<R> {
-    pub fn new(merge: R) -> Self
+    pub fn new(merge: R) -> EffectsCollect<((), Merge<R>)>
+    where
+        axum::Router: From<R>,
+    {
+        EffectsCollect::new().with_route(Self::new_raw(merge))
+    }
+    pub fn new_raw(merge: R) -> Self
     where
         axum::Router: From<R>,
     {
@@ -72,22 +68,6 @@ where
         router.merge(self.0)
     }
 }
-impl<R> PreparedEffect for Merge<R>
-where
-    axum::Router: From<R>,
-{
-    type Extension = ();
-
-    type Graceful = ();
-
-    type Route = Self;
-
-    type Server = ();
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        route_only::<Self>(self)
-    }
-}
 
 /// [PreparedEffect](crate::PreparedEffect) nest router
 ///
@@ -99,7 +79,14 @@ pub struct Nest<R> {
 }
 
 impl<R> Nest<R> {
-    pub fn new(path: &'static str, router: R) -> Self
+    pub fn new(path: &'static str, router: R) -> EffectsCollect<((), Nest<R>)>
+    where
+        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
+        R::Future: Send + 'static,
+    {
+        EffectsCollect::new().with_route(Self::new_raw(path, router))
+    }
+    pub fn new_raw(path: &'static str, router: R) -> Self
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
@@ -117,23 +104,6 @@ where
         router.nest(self.path, self.router)
     }
 }
-impl<R> PreparedEffect for Nest<R>
-where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
-{
-    type Extension = ();
-
-    type Graceful = ();
-
-    type Route = Self;
-
-    type Server = ();
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        route_only::<Self>(self)
-    }
-}
 
 /// [PreparedEffect](crate::PreparedEffect) set fallback handle
 ///
@@ -144,7 +114,14 @@ pub struct Fallback<R> {
 }
 
 impl<R> Fallback<R> {
-    pub fn new(service: R) -> Self
+    pub fn new(service: R) -> EffectsCollect<((), Fallback<R>)>
+    where
+        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
+        R::Future: Send + 'static,
+    {
+        EffectsCollect::new().with_route(Self::new_raw(service))
+    }
+    pub fn new_raw(service: R) -> Self
     where
         R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
         R::Future: Send + 'static,
@@ -159,23 +136,5 @@ where
 {
     fn add_router(self, router: axum::Router) -> axum::Router {
         router.fallback(self.service)
-    }
-}
-
-impl<R> PreparedEffect for Fallback<R>
-where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
-{
-    type Extension = ();
-
-    type Graceful = ();
-
-    type Route = Self;
-
-    type Server = ();
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        route_only::<Self>(self)
     }
 }

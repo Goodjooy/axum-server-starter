@@ -102,9 +102,9 @@ impl PreparedEffect for EchoEffect {
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
         (
-            SetExtension::arc(AtomicUsize::new(0)),
+            SetExtension::arc_raw(AtomicUsize::new(0)),
             (
-                Route::new(
+                Route::new_raw(
                     "/:path",
                     get(
                         |Path(path): Path<String>,
@@ -115,7 +115,7 @@ impl PreparedEffect for EchoEffect {
                         },
                     ),
                 ),
-                Route::new("/f/panic", get(|| async { panic!("Not a api") })),
+                Route::new_raw("/f/panic", get(|| async { panic!("Not a api") })),
             ),
             (),
             (),
@@ -160,6 +160,6 @@ impl<F: Future<Output = ()> + 'static> PreparedEffect for CtrlCEffect<F> {
     type Server = ();
 
     fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        ((), (), SetGraceful::new(self.fut), ())
+        ((), (), SetGraceful::new_raw(self.fut), ())
     }
 }

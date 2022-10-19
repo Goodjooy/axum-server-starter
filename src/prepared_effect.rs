@@ -37,17 +37,48 @@ impl<T: PreparedEffect> IntoFallibleEffect for T {
     }
 }
 
-pub struct EffectsCollect<Route = (), Graceful = (), Extension = (), Server = ()>
-where
-    Route: RouteEffect,
-    Graceful: GracefulEffect,
-    Extension: ExtensionEffect,
-    Server: ServerEffect,
-{
+pub struct EffectsCollect<Route = (), Graceful = (), Extension = (), Server = ()> {
     route: Route,
     graceful: Graceful,
     extension: Extension,
     server: Server,
+}
+
+impl<Route, Graceful, Extension, Server: ServerEffect> ServerEffect
+    for EffectsCollect<Route, Graceful, Extension, Server>
+{
+    fn config_serve(
+        self,
+        server: hyper::server::Builder<AddrIncoming>,
+    ) -> hyper::server::Builder<AddrIncoming> {
+        self.server.config_serve(server)
+    }
+}
+
+impl<Route, Graceful, Extension: ExtensionEffect, Server> ExtensionEffect
+    for EffectsCollect<Route, Graceful, Extension, Server>
+{
+    fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
+        self.extension.add_extension(extension)
+    }
+}
+
+impl<Route, Graceful: GracefulEffect, Extension, Server> GracefulEffect
+    for EffectsCollect<Route, Graceful, Extension, Server>
+{
+    fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
+        self.graceful.set_graceful()
+    }
+}
+
+impl<Route, Graceful, Extension, Server> RouteEffect
+    for EffectsCollect<Route, Graceful, Extension, Server>
+where
+    Route: RouteEffect,
+{
+    fn add_router(self, router: Router) -> Router {
+        self.route.add_router(router)
+    }
 }
 
 impl<Route, Graceful, Extension, Server> PreparedEffect
@@ -190,27 +221,6 @@ impl EffectsCollect {
             server: (),
         }
     }
-}
-
-pub fn extension_only<S: PreparedEffect<Graceful = (), Route = (), Server = ()>>(
-    extension: S::Extension,
-) -> (S::Extension, S::Route, S::Graceful, S::Server) {
-    (extension, (), (), ())
-}
-pub fn graceful_only<S: PreparedEffect<Extension = (), Route = (), Server = ()>>(
-    graceful: S::Graceful,
-) -> (S::Extension, S::Route, S::Graceful, S::Server) {
-    ((), (), graceful, ())
-}
-pub fn route_only<S: PreparedEffect<Graceful = (), Server = (), Extension = ()>>(
-    route: S::Route,
-) -> (S::Extension, S::Route, S::Graceful, S::Server) {
-    ((), route, (), ())
-}
-pub fn serve_only<S: PreparedEffect<Graceful = (), Route = (), Extension = ()>>(
-    server: S::Server,
-) -> (S::Extension, S::Route, S::Graceful, S::Server) {
-    ((), (), (), server)
 }
 
 macro_rules! group_prepared_effect {

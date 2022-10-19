@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{ExtensionEffect, PreparedEffect, prepared_effect::extension_only};
+use crate::{EffectsCollect, ExtensionEffect};
 
 /// [PreparedEffect](crate::PreparedEffect) adding extension
 pub struct SetExtension<E>(E);
@@ -10,8 +10,12 @@ where
     Arc<E>: Clone + Send + Sync + 'static,
 {
     /// [PreparedEffect](crate::PreparedEffect) adding extension with [Arc](std::sync::Arc) wrapping
-    pub fn arc(state: E) -> Self {
-        Self(Arc::new(state))
+    pub fn arc(state: E) -> EffectsCollect<(), (), ((), SetExtension<Arc<E>>)> {
+        SetExtension::<Arc<E>>::new(Arc::new(state))
+    }
+
+    pub fn arc_raw(state: E)->Self{
+        Self::new_raw(Arc::new(state))
     }
 }
 
@@ -20,7 +24,11 @@ where
     E: Clone + Send + Sync + 'static,
 {
     /// [PreparedEffect](crate::PreparedEffect) adding extension
-    pub fn new(state: E) -> Self {
+    pub fn new(state: E) -> EffectsCollect<(), (), ((), SetExtension<E>)> {
+        EffectsCollect::new().with_extension(Self::new_raw(state))
+    }
+
+    pub fn new_raw(state: E)->Self{
         Self(state)
     }
 }
@@ -31,21 +39,5 @@ where
 {
     fn add_extension(self, extension: crate::ExtensionManage) -> crate::ExtensionManage {
         extension.add_extension(self.0)
-    }
-}
-impl<E> PreparedEffect for SetExtension<E>
-where
-    E: Clone + Send + Sync + 'static,
-{
-    type Extension = Self;
-
-    type Graceful = ();
-
-    type Route = ();
-
-    type Server = ();
-
-    fn split_effect(self) -> (Self::Extension, Self::Route, Self::Graceful, Self::Server) {
-        extension_only::<Self>(self)
     }
 }
