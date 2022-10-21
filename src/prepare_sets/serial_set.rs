@@ -10,6 +10,10 @@ use crate::{
     PrepareError, PreparedEffect, RouteEffect, ServerEffect,
 };
 
+/// a set of [Prepare] task executing one by one
+///
+/// ## Note
+/// the sync part of [Prepare] will be run immediately
 pub struct SerialPrepareSet<C, PFut> {
     prepare_fut: PFut,
     configure: Arc<C>,
@@ -30,6 +34,7 @@ where
     PFut: Future<Output = Result<E, PrepareError>>,
     E: PreparedEffect,
 {
+    /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
     pub fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }
@@ -48,6 +53,7 @@ where
     G: GracefulEffect,
     C: 'static,
 {
+    /// add a [Prepare] into serially executing set
     pub fn then<P: Prepare<C>>(
         self,
         prepare: P,

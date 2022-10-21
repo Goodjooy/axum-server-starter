@@ -77,6 +77,11 @@ impl<C: 'static> ServerPrepare<C, Identity, Ready<Result<EffectsCollector, Prepa
 }
 
 impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
+    /// adding a set of [Prepare] executing concurrently
+    ///
+    /// # Note
+    ///
+    /// [Prepare] set added by different [Self::append_concurrent] will be execute serially
     pub fn append_concurrent<F, Fut, R, G, E, S, Fr, Fg, Fe, Fs>(
         self,
         concurrent: F,
@@ -108,8 +113,9 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         S: ServerEffect,
     {
         let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
-        let prepares = concurrent(concurrent_set);
-        let prepares = self.prepares.then_fut_effect(prepares.to_prepared_effect());
+        let prepares = self
+            .prepares
+            .then_fut_effect(concurrent(concurrent_set).to_prepared_effect());
         ServerPrepare::new(prepares, self.middleware)
     }
 
@@ -117,7 +123,7 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be waiting at the same time.
+    /// the [Prepare] task will be execute one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn append<P, R, S, G, E>(

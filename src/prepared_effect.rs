@@ -212,6 +212,7 @@ where
         }
     }
 
+    /// adding [Prepare::Effect] into self by awaiting [Prepare] finish
     pub async fn with_prepare<C: 'static, P: Prepare<C>>(
         self,
         prepare: P,
@@ -225,6 +226,7 @@ where
         Ok(self.with_effect(effect))
     }
 
+    /// adding another [PreparedEffect] returned by a [Future]
     pub async fn with_future_effect<
         F: Future<Output = Result<E, PrepareError>>,
         E: PreparedEffect,
@@ -251,6 +253,7 @@ impl Default for EffectsCollector {
 }
 
 impl EffectsCollector {
+    /// create new [EffectsCollector] with no effect
     pub fn new() -> Self {
         Self {
             route: (),

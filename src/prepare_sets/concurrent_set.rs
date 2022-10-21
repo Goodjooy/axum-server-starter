@@ -11,7 +11,10 @@ use crate::{
     ServerEffect,
 };
 
-/// apply all prepare task concurrently
+/// apply all [Prepare](Prepare) task concurrently
+///
+/// ## Note
+/// the sync part of [Prepare] will be run immediately
 pub struct ConcurrentPrepareSet<C, PFut> {
     prepare_fut: PFut,
     configure: Arc<C>,
@@ -22,6 +25,7 @@ where
     PFut: Future<Output = Result<E, PrepareError>>,
     E: PreparedEffect,
 {
+     /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
     pub fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }
@@ -36,6 +40,7 @@ where
     E: ExtensionEffect,
     C: 'static,
 {
+    /// join a [Prepare] into concurrent execute set
     pub fn join<P: Prepare<C>>(
         self,
         prepare: P,
@@ -58,6 +63,7 @@ where
         }
     }
 
+    /// join a function-style [Prepare] into concurrent execute set
     pub fn join_fn<F, Args>(
         self,
         func: F,
