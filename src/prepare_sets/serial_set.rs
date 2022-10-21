@@ -16,7 +16,7 @@ pub struct SerialPrepareSet<C, PFut> {
 }
 
 impl<C, PFut> SerialPrepareSet<C, PFut> {
-    pub(crate) fn get_ref_configure(&self)->&C{
+    pub(crate) fn get_ref_configure(&self) -> &C {
         &self.configure
     }
 
@@ -34,8 +34,8 @@ where
         self.prepare_fut
     }
 
-    pub(crate) fn unwrap(self)->(PFut,Arc<C>){
-        (self.prepare_fut,self.configure)
+    pub(crate) fn unwrap(self) -> (PFut, Arc<C>) {
+        (self.prepare_fut, self.configure)
     }
 }
 
@@ -96,5 +96,4 @@ impl<C: 'static> SerialPrepareSet<C, Ready<Result<EffectsCollector, PrepareError
             configure,
         }
     }
-
 }
