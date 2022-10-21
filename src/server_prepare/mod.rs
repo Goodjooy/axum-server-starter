@@ -18,8 +18,8 @@ use tower::{
 };
 
 use crate::{
-    fn_prepare, prepared_effect::CombineEffects, server_ready::ServerReady, ConcurrentPrepareSet,
-    EffectsCollector, FnPrepare, PrepareHandler, SerialPrepareSet,
+    fn_prepare, server_ready::ServerReady, ConcurrentPrepareSet, EffectsCollector, PrepareHandler,
+    SerialPrepareSet,
 };
 
 pub use self::{
@@ -90,7 +90,12 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         L,
         impl Future<
             Output = Result<
-                CombineEffects<Fr, Fg, Fe, Fs, EffectsCollector<R, G, E, S>>,
+                EffectsCollector<
+                    impl RouteEffect,
+                    impl GracefulEffect,
+                    impl ExtensionEffect,
+                    impl ServerEffect,
+                >,
                 PrepareError,
             >,
         >,
@@ -132,7 +137,17 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
     ) -> ServerPrepare<
         C,
         L,
-        impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
+        impl Future<
+            Output = Result<
+                EffectsCollector<
+                    impl RouteEffect,
+                    impl GracefulEffect,
+                    impl ExtensionEffect,
+                    impl ServerEffect,
+                >,
+                PrepareError,
+            >,
+        >,
     >
     where
         FutEffect: Future<Output = Result<EffectsCollector<R, G, E, S>, PrepareError>>,
@@ -155,7 +170,12 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         L,
         impl Future<
             Output = Result<
-                CombineEffects<R, G, E, S, <FnPrepare<C, Args, F> as Prepare<C>>::Effect>,
+                EffectsCollector<
+                    impl RouteEffect,
+                    impl GracefulEffect,
+                    impl ExtensionEffect,
+                    impl ServerEffect,
+                >,
                 PrepareError,
             >,
         >,
