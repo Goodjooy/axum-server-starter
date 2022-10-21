@@ -25,7 +25,7 @@ where
     PFut: Future<Output = Result<E, PrepareError>>,
     E: PreparedEffect,
 {
-     /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
+    /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
     pub fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }
