@@ -25,7 +25,7 @@ use tower::{
 
 use crate::{fn_prepare, server_ready::ServerReady, PrepareHandler};
 
-use self::error::{flatten_result, to_prepare_error};
+use self::error::{flatten_result};
 pub use self::{
     configure::{ConfigureServerEffect, LoggerInitialization, ServeAddress},
     error::PrepareError,
@@ -105,7 +105,7 @@ where
     {
         let task = prepare
             .prepare(Arc::clone(&self.config))
-            .map_err(to_prepare_error::<P, _>);
+            .map_err(PrepareError::to_prepare_error::<P, _>);
 
         let prepares = join(self.prepares, task).map(flatten_result);
 

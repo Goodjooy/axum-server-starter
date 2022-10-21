@@ -1,10 +1,13 @@
-use std::{convert::Infallible, error, pin::Pin};
+use std::{convert::Infallible, error, pin::Pin, sync::Arc};
 
 use axum::Router;
-use futures::Future;
+use futures::{Future, TryFutureExt};
 use hyper::server::conn::AddrIncoming;
 
-use crate::{ExtensionEffect, GracefulEffect, PreparedEffect, RouteEffect, ServerEffect};
+use crate::{
+    ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect, RouteEffect,
+    ServerEffect,
+};
 
 /// fallible prepare effect
 pub trait IntoFallibleEffect {
@@ -207,6 +210,30 @@ where
             extension: (extension, effect.0),
             server: (server, effect.3),
         }
+    }
+
+    pub async fn with_prepare<C: 'static, P: Prepare<C>>(
+        self,
+        prepare: P,
+        configure: Arc<C>,
+    ) -> Result<CombineEffects<Route, Graceful, Extension, Server, P::Effect>, PrepareError> {
+        let effect = prepare
+            .prepare(configure)
+            .map_err(PrepareError::to_prepare_error::<P, _>)
+            .await?;
+
+        Ok(self.with_effect(effect))
+    }
+
+    pub async fn with_future_effect<
+        F: Future<Output = Result<E, PrepareError>>,
+        E: PreparedEffect,
+    >(
+        self,
+        fut: F,
+    ) -> Result<CombineEffects<Route, Graceful, Extension, Server, E>, PrepareError> {
+        let effect = fut.await?;
+        Ok(self.with_effect(effect))
     }
 }
 
