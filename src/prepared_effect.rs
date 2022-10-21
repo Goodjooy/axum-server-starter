@@ -237,7 +237,7 @@ where
     }
 }
 
-type CombineEffects<Route, Graceful, Extension, Server, E> = EffectsCollector<
+pub(crate) type CombineEffects<Route, Graceful, Extension, Server, E> = EffectsCollector<
     (Route, <E as PreparedEffect>::Route),
     (Graceful, <E as PreparedEffect>::Graceful),
     (Extension, <E as PreparedEffect>::Extension),

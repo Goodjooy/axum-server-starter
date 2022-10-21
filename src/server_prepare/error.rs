@@ -20,7 +20,3 @@ impl PrepareError {
         PrepareError::new(type_name::<P>(), Box::new(err))
     }
 }
-
-pub fn flatten_result<T1, T2, E>((l, r): (Result<T1, E>, Result<T2, E>)) -> Result<(T1, T2), E> {
-    Ok((l?, r?))
-}

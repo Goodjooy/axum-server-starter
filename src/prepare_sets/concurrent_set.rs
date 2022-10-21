@@ -6,8 +6,9 @@ use futures::{
 };
 
 use crate::{
-    EffectsCollector, ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect,
-    RouteEffect, ServerEffect,
+    fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect, FnPrepare,
+    GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
+    ServerEffect,
 };
 
 /// apply all prepare task concurrently
@@ -38,8 +39,10 @@ where
     pub fn join<P: Prepare<C>>(
         self,
         prepare: P,
-    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<impl PreparedEffect, PrepareError>>>
-    {
+    ) -> ConcurrentPrepareSet<
+        C,
+        impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
+    > {
         let configure = Arc::clone(&self.configure);
         let prepare_fut = join(
             self.prepare_fut,
@@ -53,6 +56,24 @@ where
             prepare_fut,
             configure: self.configure,
         }
+    }
+
+    pub fn join_fn<F, Args>(
+        self,
+        func: F,
+    ) -> ConcurrentPrepareSet<
+        C,
+        impl Future<
+            Output = Result<
+                CombineEffects<R, G, E, S, <FnPrepare<C, Args, F> as Prepare<C>>::Effect>,
+                PrepareError,
+            >,
+        >,
+    >
+    where
+        F: PrepareHandler<Args, C>,
+    {
+        self.join(fn_prepare(func))
     }
 }
 
