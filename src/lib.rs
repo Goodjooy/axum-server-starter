@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../Readme.md")]
+mod log_macro;
 mod config_provide;
 mod effect_utils;
 mod prepare_handler;
