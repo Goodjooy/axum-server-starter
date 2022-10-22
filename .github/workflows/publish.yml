@@ -3,14 +3,16 @@ name: publish
 on:
   push:
     branches: [ "publish" ]
+    paths:
+    - '**.toml'
 
 env:
   CARGO_TERM_COLOR: always
   CRATES_KEY: ${{ secrets.CRATES_KEY }}
 
 jobs:
-  publish-macro:
-    name: Publish Macro
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -22,11 +24,16 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo publish -p axum-starter-macro --token ${CRATES_KEY}
+      
+      - name: Publish Macro
+        run: cargo publish -p axum-starter-macro --token ${CRATES_KEY}
 
       - name: Sleep for 60 seconds
+        if: success()
         run: sleep 60s
         shell: bash
       
-      - run: cargo publish --token ${CRATES_KEY}
+      - name: Publish this
+        if: success() || failure()
+        run: cargo publish --token ${CRATES_KEY}
 

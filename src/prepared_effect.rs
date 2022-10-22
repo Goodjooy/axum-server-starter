@@ -1,10 +1,13 @@
-use std::{convert::Infallible, error, pin::Pin};
+use std::{any::type_name, convert::Infallible, error, mem::size_of_val, pin::Pin, sync::Arc};
 
 use axum::Router;
-use futures::Future;
+use futures::{Future, TryFutureExt};
 use hyper::server::conn::AddrIncoming;
 
-use crate::{ExtensionEffect, GracefulEffect, PreparedEffect, RouteEffect, ServerEffect};
+use crate::{
+    debug, trace, warn, ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect,
+    RouteEffect, ServerEffect,
+};
 
 /// fallible prepare effect
 pub trait IntoFallibleEffect {
@@ -199,6 +202,7 @@ where
             extension,
             server,
         } = self;
+        trace!("Combine with another PreparedEffect[{}]", type_name::<E>());
         let effect = effect.split_effect();
 
         EffectsCollector {
@@ -208,9 +212,42 @@ where
             server: (server, effect.3),
         }
     }
+
+    /// adding [Prepare::Effect] into self by awaiting [Prepare] finish
+    pub async fn with_prepare<C: 'static, P: Prepare<C>>(
+        self,
+        prepare: P,
+        configure: Arc<C>,
+    ) -> Result<CombineEffects<Route, Graceful, Extension, Server, P::Effect>, PrepareError> {
+        debug!("Combine with another Prepare[{}]", type_name::<P>());
+        let prepare_fut = prepare
+            .prepare(configure)
+            .map_err(PrepareError::to_prepare_error::<P, _>);
+
+        self.with_future_effect(prepare_fut).await
+    }
+
+    /// adding another [PreparedEffect] returned by a [Future]
+    pub async fn with_future_effect<
+        F: Future<Output = Result<E, PrepareError>>,
+        E: PreparedEffect,
+    >(
+        self,
+        fut: F,
+    ) -> Result<CombineEffects<Route, Graceful, Extension, Server, E>, PrepareError> {
+        {
+            let fut_size = size_of_val(&fut);
+            debug!("Incoming Future[{fut_size} Bytes]");
+            if fut_size > 5 * 1024 {
+                warn!("The Future[{fut_size} Bytes] Greater then 5KB, Pin to Heap instead Stack");
+            }
+        };
+        let effect = fut.await?;
+        Ok(self.with_effect(effect))
+    }
 }
 
-type CombineEffects<Route, Graceful, Extension, Server, E> = EffectsCollector<
+pub(crate) type CombineEffects<Route, Graceful, Extension, Server, E> = EffectsCollector<
     (Route, <E as PreparedEffect>::Route),
     (Graceful, <E as PreparedEffect>::Graceful),
     (Extension, <E as PreparedEffect>::Extension),
@@ -224,6 +261,7 @@ impl Default for EffectsCollector {
 }
 
 impl EffectsCollector {
+    /// create new [EffectsCollector] with no effect
     pub fn new() -> Self {
         Self {
             route: (),
