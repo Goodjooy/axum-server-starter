@@ -135,9 +135,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             quote::quote!(
                 ::std::pin::Pin<
                     ::std::boxed::Box<
-                        impl ::core::future::Future<
-                            Output = impl ::axum_starter::IntoFallibleEffect
-                        >,
+                        impl ::core::future::Future<Output = impl ::axum_starter::IntoFallibleEffect>,
                     >,
                 >
             )
@@ -169,7 +167,7 @@ impl<'r> ToTokens for CodeGen<'r> {
                 #async_boxed
             }
         };
-        
+
         tokens.extend(token)
     }
 }
