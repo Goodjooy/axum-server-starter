@@ -1,4 +1,4 @@
-use std::{sync::Arc, any::type_name};
+use std::{any::type_name, sync::Arc};
 
 use futures::{
     future::{join, ok, Ready},
@@ -6,9 +6,9 @@ use futures::{
 };
 
 use crate::{
-    fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect, FnPrepare,
-    GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
-    ServerEffect, debug,
+    debug, fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect,
+    FnPrepare, GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
+    ServerEffect,
 };
 
 /// apply all [Prepare](Prepare) task concurrently

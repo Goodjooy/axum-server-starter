@@ -5,8 +5,8 @@ use futures::{Future, TryFutureExt};
 use hyper::server::conn::AddrIncoming;
 
 use crate::{
-    debug, warn, ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect,
-    RouteEffect, ServerEffect, trace,
+    debug, trace, warn, ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect,
+    RouteEffect, ServerEffect,
 };
 
 /// fallible prepare effect
