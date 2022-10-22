@@ -239,7 +239,7 @@ where
             let fut_size = size_of_val(&fut);
             debug!("Incoming Future[{fut_size} Bytes]");
             if fut_size > 5 * 1024 {
-                warn!("The Future[{fut_size} Bytes] Great then 5KB, suggest Pin to Heap");
+                warn!("The Future[{fut_size} Bytes] Greater then 5KB, Pin to Heap instead Stack");
             }
         };
         let effect = fut.await?;
