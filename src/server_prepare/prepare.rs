@@ -57,7 +57,9 @@ pub trait GracefulEffect: Sized {
     ///
     /// ## Warning
     /// if there are multiply [Prepare] want to set graceful shutdown, the first one set the signal will be applied
-    fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>>;
+    fn set_graceful(self) -> Option<Pin<Box<dyn Future<Output = ()>>>> {
+        None
+    }
 }
 
 /// [Prepare] effect may apply [Router::route], [Router::nest], [Router::fallback], [Router::merge] on the root [Router]
