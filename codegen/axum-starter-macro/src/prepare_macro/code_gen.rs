@@ -1,12 +1,13 @@
 use darling::ToTokens;
 
-use syn::{Lifetime, Type};
+use syn::{punctuated::Punctuated, Lifetime, Token, Type};
 
-use super::inputs::input_fn::InputFn;
+use super::inputs::input_fn::{GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
     call_async: bool,
     prepare_name: &'r syn::Ident,
+    prepare_generic: GenericWithBound<'r>,
     prepare_call: &'r syn::Ident,
 
     call_args: Vec<&'r Type>,
@@ -21,7 +22,7 @@ impl<'r> CodeGen<'r> {
             is_async,
             fn_name,
             args_type,
-            ..
+            generic,
         }: InputFn<'r>,
     ) -> Self {
         Self {
@@ -30,6 +31,7 @@ impl<'r> CodeGen<'r> {
             prepare_call: fn_name,
             call_args: args_type,
             args_lifetime: arg_lifetime.as_ref(),
+            prepare_generic: generic,
         }
     }
 }
@@ -42,12 +44,49 @@ impl<'r> ToTokens for CodeGen<'r> {
             prepare_call,
             call_args,
             args_lifetime,
+            prepare_generic,
         } = self;
 
         let bound_lifetime = match args_lifetime {
             Some(l) => quote::quote!(#l),
             None => quote::quote!('r),
         };
+
+        let extra_generic = {
+            let GenericWithBound {
+                type_generic,
+                const_generic,
+                ..
+            } = prepare_generic;
+            quote::quote! {
+                # type_generic
+                # const_generic
+            }
+        };
+
+        let generic_set = {
+            let GenericWithBound {
+                type_generic,
+                const_generic,
+                ..
+            } = prepare_generic;
+
+            let ty_generic = type_generic
+                .into_iter()
+                .map(|v| &v.ident)
+                .collect::<Punctuated<_, Token!(,)>>();
+            let const_generic = const_generic
+                .into_iter()
+                .map(|v| &v.ident)
+                .collect::<Punctuated<_, Token!(,)>>();
+
+            quote::quote!(
+                #ty_generic
+                #const_generic
+            )
+        };
+
+        let extra_bounds = prepare_generic.where_closure;
 
         let impl_bounds = call_args.iter().map(|ty| {
             quote::quote! {
@@ -69,12 +108,18 @@ impl<'r> ToTokens for CodeGen<'r> {
         // impl prepare
         let token = quote::quote! {
             #[allow(non_snake_case)]
-            pub async fn #prepare_name<Config>(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
+            pub async fn #prepare_name<
+            Config,
+            #extra_generic
+            >(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
             where
                 Config : 'static,
                 #(#impl_bounds)*
+                #extra_bounds
             {
-                #prepare_call(
+                #prepare_call::<
+                #generic_set
+                >(
                     #(
                         #args_fetch
                     ),*
