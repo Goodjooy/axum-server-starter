@@ -1,12 +1,14 @@
 use darling::ToTokens;
 
-use syn::{Lifetime, Type};
+use syn::{punctuated::Punctuated, Lifetime, Token, Type};
 
-use super::inputs::input_fn::InputFn;
+use super::inputs::input_fn::{GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
     call_async: bool,
+    boxed: bool,
     prepare_name: &'r syn::Ident,
+    prepare_generic: GenericWithBound<'r>,
     prepare_call: &'r syn::Ident,
 
     call_args: Vec<&'r Type>,
@@ -17,11 +19,12 @@ impl<'r> CodeGen<'r> {
     pub fn new(
         prepare_name: &'r syn::Ident,
         arg_lifetime: &'r Option<Lifetime>,
+        boxed: bool,
         InputFn {
             is_async,
             fn_name,
             args_type,
-            ..
+            generic,
         }: InputFn<'r>,
     ) -> Self {
         Self {
@@ -30,6 +33,8 @@ impl<'r> CodeGen<'r> {
             prepare_call: fn_name,
             call_args: args_type,
             args_lifetime: arg_lifetime.as_ref(),
+            prepare_generic: generic,
+            boxed,
         }
     }
 }
@@ -42,12 +47,50 @@ impl<'r> ToTokens for CodeGen<'r> {
             prepare_call,
             call_args,
             args_lifetime,
+            prepare_generic,
+            boxed,
         } = self;
 
         let bound_lifetime = match args_lifetime {
             Some(l) => quote::quote!(#l),
             None => quote::quote!('r),
         };
+
+        let extra_generic = {
+            let GenericWithBound {
+                type_generic,
+                const_generic,
+                ..
+            } = prepare_generic;
+            quote::quote! {
+                # type_generic
+                # const_generic
+            }
+        };
+
+        let generic_set = {
+            let GenericWithBound {
+                type_generic,
+                const_generic,
+                ..
+            } = prepare_generic;
+
+            let ty_generic = type_generic
+                .into_iter()
+                .map(|v| &v.ident)
+                .collect::<Punctuated<_, Token!(,)>>();
+            let const_generic = const_generic
+                .into_iter()
+                .map(|v| &v.ident)
+                .collect::<Punctuated<_, Token!(,)>>();
+
+            quote::quote!(
+                #ty_generic
+                #const_generic
+            )
+        };
+
+        let extra_bounds = prepare_generic.where_closure;
 
         let impl_bounds = call_args.iter().map(|ty| {
             quote::quote! {
@@ -57,7 +100,7 @@ impl<'r> ToTokens for CodeGen<'r> {
 
         let args_fetch = call_args.iter().map(|_ty| {
             quote::quote! {
-                ::axum_starter::Provider::provide(std::ops::Deref::deref(&config))
+                ::axum_starter::Provider::provide(::core::ops::Deref::deref(&config))
             }
         });
 
@@ -66,21 +109,65 @@ impl<'r> ToTokens for CodeGen<'r> {
         } else {
             None
         };
-        // impl prepare
-        let token = quote::quote! {
-            #[allow(non_snake_case)]
-            pub async fn #prepare_name<Config>(config:std::sync::Arc<Config>) -> impl ::axum_starter::IntoFallibleEffect
-            where
-                Config : 'static,
-                #(#impl_bounds)*
-            {
-                #prepare_call(
+
+        let func_call = quote::quote! {
+            #prepare_call::<
+                #generic_set
+                >(
                     #(
                         #args_fetch
                     ),*
-                )# awaiting
+                )#awaiting
+        };
+
+        let async_boxed = if *boxed {
+            quote::quote! {
+                ::std::boxed::Box::pin(
+                    async move {
+                        #func_call
+                    }
+                )
+            }
+        } else {
+            func_call
+        };
+        let boxed_ret = if *boxed {
+            quote::quote!(
+                ::std::pin::Pin<
+                    ::std::boxed::Box<
+                        impl ::core::future::Future<Output = impl ::axum_starter::IntoFallibleEffect>,
+                    >,
+                >
+            )
+        } else {
+            quote::quote!(impl ::axum_starter::IntoFallibleEffect)
+        };
+
+        let boxed_async_signal = if *boxed {
+            None
+        } else {
+            Some(quote::quote!(async))
+        };
+
+        // impl prepare
+        let token = quote::quote! {
+            #[allow(non_snake_case)]
+            pub #boxed_async_signal fn #prepare_name<
+                Config,
+                #extra_generic
+                >
+            (
+                config:std::sync::Arc<Config>
+            ) -> #boxed_ret
+            where
+                Config : 'static,
+                #(#impl_bounds)*
+                #extra_bounds
+            {
+                #async_boxed
             }
         };
+
         tokens.extend(token)
     }
 }
