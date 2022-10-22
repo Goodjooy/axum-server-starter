@@ -60,10 +60,19 @@ impl Configure {
 // prepares
 
 /// if need ref args ,adding a lifetime
-#[prepare(ShowFoo 'arg)]
-fn show_foo(f: &'arg String) {
-    println!("this is Foo {f}")
+#[prepare(box ShowFoo 'arg)]
+fn show_foo<S>(f: &'arg S)
+where
+    S: AsRef<str> + ?Sized,
+{
+    println!("this is Foo {}", f.as_ref())
 }
+
+#[prepare(ShowValue)]
+fn the_value<const V: i32>() {
+    println!("The value is {}", V)
+}
+
 /// using `#[prepare]`
 #[prepare(EchoRouter)]
 fn echo() -> impl PreparedEffect {
@@ -72,7 +81,7 @@ fn echo() -> impl PreparedEffect {
         get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
     )
 }
-#[prepare(C)]
+#[prepare(box C)]
 fn routers() -> impl PreparedEffect {
     EffectsCollector::new()
         .with_route(Nest::new(
@@ -88,6 +97,7 @@ fn routers() -> impl PreparedEffect {
         }))
 }
 
+#[prepare(box Show)]
 async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
@@ -110,9 +120,8 @@ async fn start() {
     ServerPrepare::with_config(Configure::new())
         .init_logger()
         .expect("Init Logger Failure")
-        .append(ShowFoo)
-        .append(C)
-        .append_fn(show)
+        .append(ShowValue::<_, 11>)
+        .append_concurrent(|set| set.join(ShowFoo::<_, str>).join(C).join(Show))
         .append_fn(graceful_shutdown)
         .append(EchoRouter)
         .with_global_middleware(TraceLayer::new_for_http())

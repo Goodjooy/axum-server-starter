@@ -29,11 +29,11 @@ jobs:
         run: cargo publish -p axum-starter-macro --token ${CRATES_KEY}
 
       - name: Sleep for 60 seconds
-        if success()
+        if: success()
         run: sleep 60s
         shell: bash
       
       - name: Publish this
-        if success() || failure()
+        if: success() || failure()
         run: cargo publish --token ${CRATES_KEY}
 

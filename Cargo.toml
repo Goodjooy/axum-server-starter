@@ -13,22 +13,27 @@ keywords = ["web", "http", "axum"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = []
+logger = ["dep:log"]
+
 [workspace]
 members = ["./codegen/axum-starter-macro", "./examples/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-axum = "0.5.16"
-axum-starter-macro = { version = "0.2.1" }
-futures = "0.3.24"
-http-body = "0.4.5"
-hyper = { version = "0.14.20", features = ["server"] }
-log = "0.4.17"
-tap = "1.0.1"
-thiserror = "1.0.37"
-tower = "0.4.13"
+axum = "0.5"
+axum-starter-macro = { path = "./codegen/axum-starter-macro" }
+futures = "0.3"
+http-body = "0.4"
+hyper = { version = "0.14", features = ["server"] }
+log = { version = "0.4", optional = true }
+tap = "1"
+thiserror = "1"
+tower = "0.4"
 
 [dev-dependencies]
 tower-http = { version = "0.3.4", features = ["catch-panic", "trace"] }
 tokio = { version = "1.21.2", features = ["full"] }
 simple_logger = "2.3.0"
+log = "0.4"
