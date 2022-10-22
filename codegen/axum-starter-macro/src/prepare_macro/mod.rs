@@ -9,7 +9,11 @@ pub mod code_gen;
 pub mod inputs;
 
 pub fn prepare_macro(
-    PrepareName(name, lt): &PrepareName,
+    PrepareName {
+        need_boxed,
+        ident,
+        lt,
+    }: &PrepareName,
     mut item_fn: ItemFn,
 ) -> syn::Result<proc_macro::TokenStream> {
     if let Some(lt) = lt {
@@ -34,7 +38,7 @@ pub fn prepare_macro(
     }
 
     let input = InputFn::from_fn_item(&item_fn, lt.as_ref())?;
-    let code_gen = CodeGen::new(name, lt, input);
+    let code_gen = CodeGen::new(ident, lt, *need_boxed, input);
 
     Ok(quote::quote! {
         # code_gen

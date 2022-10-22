@@ -97,6 +97,7 @@ fn routers() -> impl PreparedEffect {
         }))
 }
 
+#[prepare(box Show)]
 async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
@@ -123,7 +124,7 @@ async fn start() {
         .append_concurrent(|set| {
             set.join(ShowFoo::<_, str>)
                 .join(C)
-                .join_fn(show)
+                .join(Show)
                 .join_fn(graceful_shutdown)
         })
         .append(EchoRouter)
