@@ -1,12 +1,12 @@
-use std::{convert::Infallible, error, pin::Pin, sync::Arc};
+use std::{any::type_name, convert::Infallible, error, mem::size_of_val, pin::Pin, sync::Arc};
 
 use axum::Router;
 use futures::{Future, TryFutureExt};
 use hyper::server::conn::AddrIncoming;
 
 use crate::{
-    ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect, RouteEffect,
-    ServerEffect,
+    debug, trace, warn, ExtensionEffect, GracefulEffect, Prepare, PrepareError, PreparedEffect,
+    RouteEffect, ServerEffect,
 };
 
 /// fallible prepare effect
@@ -202,6 +202,7 @@ where
             extension,
             server,
         } = self;
+        trace!("Combine with another PreparedEffect[{}]", type_name::<E>());
         let effect = effect.split_effect();
 
         EffectsCollector {
@@ -218,12 +219,12 @@ where
         prepare: P,
         configure: Arc<C>,
     ) -> Result<CombineEffects<Route, Graceful, Extension, Server, P::Effect>, PrepareError> {
-        let effect = prepare
+        debug!("Combine with another Prepare[{}]", type_name::<P>());
+        let prepare_fut = prepare
             .prepare(configure)
-            .map_err(PrepareError::to_prepare_error::<P, _>)
-            .await?;
+            .map_err(PrepareError::to_prepare_error::<P, _>);
 
-        Ok(self.with_effect(effect))
+        self.with_future_effect(prepare_fut).await
     }
 
     /// adding another [PreparedEffect] returned by a [Future]
@@ -234,6 +235,13 @@ where
         self,
         fut: F,
     ) -> Result<CombineEffects<Route, Graceful, Extension, Server, E>, PrepareError> {
+        {
+            let fut_size = size_of_val(&fut);
+            debug!("Incoming Future[{fut_size} Bytes]");
+            if fut_size > 5 * 1024 {
+                warn!("The Future[{fut_size} Bytes] Greater then 5KB, Pin to Heap instead Stack");
+            }
+        };
         let effect = fut.await?;
         Ok(self.with_effect(effect))
     }

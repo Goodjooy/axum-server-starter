@@ -60,7 +60,7 @@ impl Configure {
 // prepares
 
 /// if need ref args ,adding a lifetime
-#[prepare(ShowFoo 'arg)]
+#[prepare(box ShowFoo 'arg)]
 fn show_foo<S>(f: &'arg S)
 where
     S: AsRef<str> + ?Sized,
@@ -81,7 +81,7 @@ fn echo() -> impl PreparedEffect {
         get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
     )
 }
-#[prepare(C)]
+#[prepare(box C)]
 fn routers() -> impl PreparedEffect {
     EffectsCollector::new()
         .with_route(Nest::new(
@@ -121,12 +121,8 @@ async fn start() {
         .init_logger()
         .expect("Init Logger Failure")
         .append(ShowValue::<_, 11>)
-        .append_concurrent(|set| {
-            set.join(ShowFoo::<_, str>)
-                .join(C)
-                .join(Show)
-                .join_fn(graceful_shutdown)
-        })
+        .append_concurrent(|set| set.join(ShowFoo::<_, str>).join(C).join(Show))
+        .append_fn(graceful_shutdown)
         .append(EchoRouter)
         .with_global_middleware(TraceLayer::new_for_http())
         .prepare_start()

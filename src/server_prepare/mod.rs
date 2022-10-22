@@ -1,5 +1,6 @@
 mod error;
 use std::{
+    any::type_name,
     convert::Infallible,
     future::IntoFuture,
     marker::{PhantomData, Send},
@@ -18,8 +19,8 @@ use tower::{
 };
 
 use crate::{
-    fn_prepare, server_ready::ServerReady, ConcurrentPrepareSet, EffectsCollector, PrepareHandler,
-    SerialPrepareSet,
+    debug, fn_prepare, info, server_ready::ServerReady, ConcurrentPrepareSet, EffectsCollector,
+    PrepareHandler, SerialPrepareSet,
 };
 
 pub use self::{
@@ -60,6 +61,7 @@ where
     /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
         self.prepares.get_ref_configure().init_logger()?;
+        info!("init Logger done");
         Ok(ServerPrepare::new(self.prepares, self.middleware))
     }
 }
@@ -117,6 +119,7 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         E: ExtensionEffect,
         S: ServerEffect,
     {
+        debug!("Start adding Prepare Task executing concurrently");
         let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
         let prepares = self
             .prepares
@@ -196,6 +199,7 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
     /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
     /// axum requirement
     pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>, FutEffect> {
+        debug!("Adding global middleware[{}]", type_name::<M>());
         ServerPrepare::new(self.prepares, self.middleware.layer(layer))
     }
     /// prepare to start this server
@@ -218,9 +222,11 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         Effect: PreparedEffect,
     {
         let (prepare_fut, configure) = self.prepares.unwrap();
+        debug!("Waiting for all Prepare task done");
         let (extension_effect, route_effect, graceful_effect, server_effect) =
             prepare_fut.await?.split_effect();
 
+        debug!("Apple Route Effect and Extension Effect");
         let router = Router::new()
             // apply prepare effect on router
             .pipe(|router| route_effect.add_router(router))
@@ -229,14 +235,19 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
             // adding middleware
             .pipe(|router| router.layer(self.middleware));
 
+        debug!("Apple Graceful Shutdown Effect");
         let graceful = graceful_effect.set_graceful();
 
+        debug!("Apple Graceful Server Effect");
         let server = server::Server::bind(&ServeAddress::get_address(&*configure).into())
             // apply effect config server
             .pipe(|server| server_effect.config_serve(server))
             // apply configure config server
             .pipe(|server| configure.effect_server(server))
             .serve(router.into_make_service());
+
+        debug!("All prepare down, ready to launch");
+        info!("Server on {}", configure.get_address().into());
 
         Ok(match graceful {
             Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut)),

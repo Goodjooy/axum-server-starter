@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{any::type_name, sync::Arc};
 
 use futures::{
     future::{join, ok, Ready},
@@ -6,8 +6,8 @@ use futures::{
 };
 
 use crate::{
-    fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect, FnPrepare,
-    GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
+    debug, fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect,
+    FnPrepare, GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
     ServerEffect,
 };
 
@@ -48,6 +48,11 @@ where
         C,
         impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
     > {
+        debug!(
+            "Adding Prepare[{}] task executing concurrently",
+            type_name::<P>()
+        );
+
         let configure = Arc::clone(&self.configure);
         let prepare_fut = join(
             self.prepare_fut,

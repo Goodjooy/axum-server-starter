@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{any::type_name, mem::size_of_val, sync::Arc};
 
 use futures::{
     future::{ok, Ready},
@@ -6,8 +6,8 @@ use futures::{
 };
 
 use crate::{
-    prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect, GracefulEffect, Prepare,
-    PrepareError, PreparedEffect, RouteEffect, ServerEffect,
+    debug, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect, GracefulEffect,
+    Prepare, PrepareError, PreparedEffect, RouteEffect, ServerEffect,
 };
 
 /// a set of [Prepare] task executing one by one
@@ -61,6 +61,11 @@ where
         C,
         impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
     > {
+        debug!(
+            "Adding Prepare[{}] task executing serially",
+            type_name::<P>()
+        );
+
         let configure = Arc::clone(&self.configure);
 
         let prepare_fut = self
@@ -84,6 +89,7 @@ where
         Fut: Future<Output = Result<Effect, PrepareError>>,
         Effect: PreparedEffect,
     {
+        debug!("Adding Preparing Future task[{}Byte]", size_of_val(&fut));
         let prepare_fut = self
             .prepare_fut
             .and_then(|collector| collector.with_future_effect(fut));
