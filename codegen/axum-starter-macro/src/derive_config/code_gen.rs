@@ -1,5 +1,5 @@
 use darling::{util::Override, ToTokens};
-use syn::{Path, Type};
+use syn::{Expr, Path, Type};
 
 use super::derive_inputs::{Address, DeriveInput, Logger, Provider};
 
@@ -7,31 +7,56 @@ pub struct ImplAddress<'r> {
     ident: &'r syn::Ident,
     ty: Option<&'r Type>,
     fetcher: Option<&'r Path>,
+    associate_fetcher: bool,
 }
 
 impl<'r> From<&'r DeriveInput> for ImplAddress<'r> {
     fn from(input: &'r DeriveInput) -> Self {
         let ident = &input.ident;
-        let (ty, fetcher) = match input.address {
-            Address::Provide(Override::Explicit(Provider { ref ty })) => (Some(ty), None),
-            Address::Provide(Override::Inherit) => (None, None),
-            Address::Func { ref path, ref ty } => (ty.as_ref(), Some(path)),
+        let (ty, fetcher, ass) = match input.address {
+            Address::Provide(Override::Explicit(Provider { ref ty })) => (Some(ty), None, false),
+            Address::Provide(Override::Inherit) => (None, None, false),
+            Address::Func {
+                ref path,
+                ref ty,
+                associate,
+            } => (ty.as_ref(), Some(path), associate),
         };
 
-        Self { ident, ty, fetcher }
+        Self {
+            ident,
+            ty,
+            fetcher,
+            associate_fetcher: ass,
+        }
     }
 }
 
 impl<'r> ToTokens for ImplAddress<'r> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ImplAddress { ident, ty, fetcher } = self;
+        let ImplAddress {
+            ident,
+            ty,
+            fetcher,
+            associate_fetcher,
+        } = self;
 
         let ty = ty
             .map(|ty| quote::quote!(#ty))
             .unwrap_or_else(|| quote::quote!(::std::net::SocketAddr));
 
         let fetcher = fetcher
-            .map(|fetch| quote::quote!(# fetch ( &self )))
+            .map(|fetch| {
+                if *associate_fetcher {
+                    quote::quote!(
+                        (#fetch) ()
+                    )
+                } else {
+                    quote::quote!(
+                        (#fetch) (self)
+                    )
+                }
+            })
             .unwrap_or_else(|| quote::quote!(::axum_starter::Provider::provide(self)));
 
         let impl_block = quote::quote! {
@@ -51,17 +76,19 @@ impl<'r> ToTokens for ImplAddress<'r> {
 pub struct ImplInitLog<'r> {
     ident: &'r syn::Ident,
     err_type: &'r Type,
-    init: &'r Path,
+    init: &'r Expr,
+    associate: bool,
 }
 
 impl<'r> From<&'r DeriveInput> for Option<ImplInitLog<'r>> {
     fn from(input: &'r DeriveInput) -> Self {
-        let Some(Logger{ func, error }) = input.logger.as_ref() else {return  None;};
+        let Some(Logger{ func, error, associate }) = input.logger.as_ref() else {return  None;};
 
         Some(ImplInitLog {
             ident: &input.ident,
             err_type: error,
             init: func,
+            associate: *associate,
         })
     }
 }
@@ -72,13 +99,20 @@ impl<'r> ToTokens for ImplInitLog<'r> {
             err_type,
             init,
             ident,
+            associate,
         } = self;
+
+        let call = if *associate {
+            quote::quote!(#init())
+        } else {
+            quote::quote!(( #init ) ( self ))
+        };
 
         let token = quote::quote! {
             impl ::axum_starter::LoggerInitialization for #ident {
                 type Error = #err_type;
                 fn init_logger(&self) -> Result<(), Self::Error>{
-                    #init ( self )
+                    #call
                 }
             }
         };
