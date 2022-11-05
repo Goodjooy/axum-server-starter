@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     iter::Cloned,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
