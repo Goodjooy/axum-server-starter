@@ -43,6 +43,40 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
     darling_err!(derive_provider::provider_derive(derive_input))
 }
 
+/// help macro from impl `ServeAddress`, `LoggerInitialization`, `ConfigureServerEffect`
+///
+/// ##Example
+///
+/// ```rust
+/// #[derive(Debug, Provider, Configure)]
+/// #[conf(
+///     address(provide),
+///     logger(error = "log::SetLoggerError", func = "Self::init_log"),
+///     server
+///)]
+/// struct Configure {
+///     #[provider(transparent)]
+///     bar: SocketAddr,
+/// }
+///
+/// impl Configure {
+///     fn init_log(&self) -> Result<(), log::SetLoggerError>{
+///         // initial the logger
+///         Ok(())
+///     }
+/// }
+///
+/// ```  
+/// - using `address(provide)` direct using the config provide get address,
+/// - using `address(provide(ty = "..."))` similar to previous one, but using the provide type
+///     **Note** the provided type need impl [Into<std::net::SocketAddr>]
+/// - using `address(func(path = "...", ty = "..."))` using provide function get the socket address,
+/// the `ty` is optional,default is [std::net::SocketAddr], the function look like `fn (&self) -> $ty`
+/// - using `logger(error="...", func="...")` to impl `LoggerInitialization`, 
+/// the func look like `fn (&self) -> Result<(), $error>`
+/// - using `server="..."` to impl `ConfigureServerEffect` with internally call the provide func or
+/// just using `server` or ignore it to having an empty impl. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`
+///
 #[proc_macro_derive(Configure, attributes(conf))]
 pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
