@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4}, iter::Cloned,
+    iter::Cloned,
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
 use axum::{
@@ -38,7 +39,7 @@ struct Configure {
     iter: Vec<i32>,
 }
 
-fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T> >{
+fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
     vec.iter().cloned()
 }
 

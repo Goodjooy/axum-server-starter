@@ -92,7 +92,7 @@ impl<'r> GenericWithBound<'r> {
                             let predicate_type = PredicateType {
                                 lifetimes: None,
                                 bounded_ty: bounded_ty.clone(),
-                                colon_token: colon_token.clone(),
+                                colon_token: *colon_token,
                                 bounds: bounds.clone(),
                             };
 
