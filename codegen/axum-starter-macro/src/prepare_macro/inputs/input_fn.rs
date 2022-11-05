@@ -1,6 +1,6 @@
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, PatType, Token, TypeParam, WherePredicate,
+    LifetimeDef, PatType, PredicateType, Token, TypeParam, WherePredicate,
 };
 
 pub struct InputFn<'r> {
@@ -61,7 +61,7 @@ impl<'r> InputFn<'r> {
 
 pub struct GenericWithBound<'r> {
     /// where bound
-    pub where_closure: Option<&'r Punctuated<WherePredicate, Token![,]>>,
+    pub where_closure: Option<Punctuated<PredicateType, Token![,]>>,
     /// type generic
     pub type_generic: Punctuated<&'r TypeParam, Token![,]>,
     pub const_generic: Punctuated<&'r ConstParam, Token![,]>,
@@ -69,6 +69,51 @@ pub struct GenericWithBound<'r> {
 
 impl<'r> GenericWithBound<'r> {
     fn new(generic: &'r Generics, lifetime: Option<&'r Lifetime>) -> syn::Result<Self> {
+        // where bund only have type
+        let where_bound = if let Some(bounds) = generic.where_clause.as_ref().map(|w| &w.predicates)
+        {
+            Some(
+                bounds
+                    .into_iter()
+                    .map(|bound| match bound {
+                        WherePredicate::Type(PredicateType {
+                            lifetimes,
+                            bounded_ty,
+                            colon_token,
+                            bounds,
+                        }) => {
+                            if lifetimes.is_some() {
+                                Err(syn::Error::new(
+                                    lifetimes.span(),
+                                    "`prepare` not support bound with lifetime",
+                                ))?;
+                            };
+
+                            let predicate_type = PredicateType {
+                                lifetimes: None,
+                                bounded_ty: bounded_ty.clone(),
+                                colon_token: colon_token.clone(),
+                                bounds: bounds.clone(),
+                            };
+
+                            Ok(predicate_type)
+                        }
+                        other => Err(syn::Error::new(
+                            other.span(),
+                            "`prepare` only support generic bound for Type",
+                        )),
+                    })
+                    .try_fold(Punctuated::<_, Token!(,)>::new(), |mut iter, token| {
+                        token.map(|t| {
+                            iter.push(t);
+                            iter
+                        })
+                    })?,
+            )
+        } else {
+            None
+        };
+
         // if provide lifetime, there only on lifetime
         if let Some(lf) = lifetime {
             let mut lifetime_iter = generic.lifetimes();
@@ -100,7 +145,7 @@ impl<'r> GenericWithBound<'r> {
         }
 
         let this = Self {
-            where_closure: generic.where_clause.as_ref().map(|v| &v.predicates),
+            where_closure: where_bound,
             type_generic: generic.type_params().collect(),
             const_generic: generic.const_params().collect(),
         };

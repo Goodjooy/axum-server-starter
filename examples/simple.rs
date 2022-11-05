@@ -1,4 +1,7 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::{
+    fmt::{Debug, Display},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4}, iter::Cloned,
+};
 
 use axum::{
     extract::{OriginalUri, Path},
@@ -15,8 +18,8 @@ use axum_starter::{
 };
 use futures::FutureExt;
 
+use std::slice::Iter;
 use tower_http::trace::TraceLayer;
-
 /// configure for server starter
 #[derive(Debug, Provider)]
 struct Configure {
@@ -28,6 +31,15 @@ struct Configure {
     bar: SocketAddr,
 
     foo_bar: (i32, i32),
+    #[provider(
+        transparent,
+        map_to(ty = "Cloned<Iter<'a, i32>>", by = "vec_iter", lifetime = "'a")
+    )]
+    iter: Vec<i32>,
+}
+
+fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T> >{
+    vec.iter().cloned()
 }
 
 impl LoggerInitialization for Configure {
@@ -54,10 +66,21 @@ impl Configure {
             foo: "Foo".into(),
             bar: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)),
             foo_bar: (1, 2),
+            iter: vec![1, 2, 3, 4, 5, 6, 7, 8],
         }
     }
 }
 // prepares
+
+#[prepare(LifetimeBound 'arg)]
+fn lifetime_bound<'arg, I>(iter: I)
+where
+    I: IntoIterator<Item = i32>,
+{
+    for i in iter {
+        log::info!("Has config iter {:?}", i)
+    }
+}
 
 /// if need ref args ,adding a lifetime
 #[prepare(box ShowFoo 'arg)]
@@ -121,7 +144,8 @@ async fn start() {
         .init_logger()
         .expect("Init Logger Failure")
         .append(ShowValue::<_, 11>)
-        .append_concurrent(|set| set.join(ShowFoo::<_, str>).join(C).join(Show))
+        // .append(LifetimeBound::<_, Cloned<Iter<i32>>>)
+        .append_concurrent(|set| set.join(ShowFoo::<_, String>).join(C).join(Show))
         .append_fn(graceful_shutdown)
         .append(EchoRouter)
         .with_global_middleware(TraceLayer::new_for_http())
