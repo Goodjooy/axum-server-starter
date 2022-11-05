@@ -25,7 +25,7 @@ use tower_http::trace::TraceLayer;
 #[derive(Debug, Provider, Configure)]
 #[conf(
     address(provide),
-    logger(error = "log::SetLoggerError", func = "Self::init_log"),
+    logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
     server
 )]
 struct Configure {
@@ -42,12 +42,6 @@ struct Configure {
         map_to(ty = "Cloned<Iter<'a, i32>>", by = "vec_iter", lifetime = "'a")
     )]
     iter: Vec<i32>,
-}
-
-impl Configure {
-    fn init_log(&self) -> Result<(), log::SetLoggerError> {
-        simple_logger::init()
-    }
 }
 
 fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
