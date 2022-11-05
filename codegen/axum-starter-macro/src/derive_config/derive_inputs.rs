@@ -26,8 +26,6 @@ pub enum Address {
     },
 }
 
-
-
 #[derive(Debug, darling::FromMeta)]
 pub struct Provider {
     pub(super) ty: Type,
