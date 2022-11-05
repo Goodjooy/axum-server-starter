@@ -35,5 +35,5 @@ tower = "0.4"
 [dev-dependencies]
 tower-http = { version = "0.3.4", features = ["catch-panic", "trace"] }
 tokio = { version = "1.21.2", features = ["full"] }
-simple_logger = "2.3.0"
+simple_logger = "4.0.0"
 log = "0.4"
