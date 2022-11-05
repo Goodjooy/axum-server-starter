@@ -14,21 +14,26 @@ use axum_starter::{
     graceful::SetGraceful,
     prepare,
     router::{Fallback, Nest, Route},
-    ConfigureServerEffect, EffectsCollector, LoggerInitialization, PreparedEffect, Provider,
-    ServeAddress, ServerPrepare,
+    EffectsCollector, PreparedEffect, Provider, ServerPrepare,
 };
+use axum_starter_macro::Configure;
 use futures::FutureExt;
 
 use std::slice::Iter;
 use tower_http::trace::TraceLayer;
 /// configure for server starter
-#[derive(Debug, Provider)]
+#[derive(Debug, Provider, Configure)]
+#[conf(
+    address(provide),
+    logger(error = "log::SetLoggerError", func = "Self::init_log"),
+    server
+)]
 struct Configure {
     #[provider(ref, transparent)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
-    #[provider(skip)]
+    #[provider(transparent)]
     bar: SocketAddr,
 
     foo_bar: (i32, i32),
@@ -39,27 +44,15 @@ struct Configure {
     iter: Vec<i32>,
 }
 
-fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
-    vec.iter().cloned()
-}
-
-impl LoggerInitialization for Configure {
-    type Error = log::SetLoggerError;
-
-    fn init_logger(&self) -> Result<(), Self::Error> {
+impl Configure {
+    fn init_log(&self) -> Result<(), log::SetLoggerError> {
         simple_logger::init()
     }
 }
 
-impl ServeAddress for Configure {
-    type Address = SocketAddr;
-
-    fn get_address(&self) -> Self::Address {
-        self.bar
-    }
+fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
+    vec.iter().cloned()
 }
-
-impl ConfigureServerEffect for Configure {}
 
 impl Configure {
     pub fn new() -> Self {

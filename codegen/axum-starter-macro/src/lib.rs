@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-
+mod derive_config;
 mod derive_provider;
 mod prepare_macro;
 use prepare_macro::inputs::attr_name::PrepareName;
@@ -43,6 +43,12 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
     darling_err!(derive_provider::provider_derive(derive_input))
 }
 
+#[proc_macro_derive(Configure, attributes(conf))]
+pub fn derive_config_impl(input: proc_macro::TokenStream)->proc_macro::TokenStream{
+    let derive_input = parse_macro_input!(input as DeriveInput);
+    darling_err!(derive_config::provider_derive(derive_input))
+}
+
 /// make a function can apply as a `Prepare`
 ///
 /// ## Example
@@ -81,3 +87,4 @@ pub fn prepare(
         Err(error) => error.to_compile_error().into(),
     }
 }
+
