@@ -44,7 +44,7 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 #[proc_macro_derive(Configure, attributes(conf))]
-pub fn derive_config_impl(input: proc_macro::TokenStream)->proc_macro::TokenStream{
+pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     darling_err!(derive_config::provider_derive(derive_input))
 }
@@ -87,4 +87,3 @@ pub fn prepare(
         Err(error) => error.to_compile_error().into(),
     }
 }
-
