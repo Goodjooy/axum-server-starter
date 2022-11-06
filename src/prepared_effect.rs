@@ -1,4 +1,6 @@
-use std::{any::type_name, convert::Infallible, error, mem::size_of_val, pin::Pin, sync::Arc};
+#[allow(unused_imports)]
+use std::any::type_name;
+use std::{convert::Infallible, error, mem::size_of_val, pin::Pin, sync::Arc};
 
 use axum::Router;
 use futures::{Future, TryFutureExt};
@@ -202,7 +204,11 @@ where
             extension,
             server,
         } = self;
-        trace!("Combine with another PreparedEffect[{}]", type_name::<E>());
+        trace!(
+            action = "Combine",
+            "type" = "PrepareEffect",
+            name = type_name::<E>()
+        );
         let effect = effect.split_effect();
 
         EffectsCollector {
@@ -219,7 +225,11 @@ where
         prepare: P,
         configure: Arc<C>,
     ) -> Result<CombineEffects<Route, Graceful, Extension, Server, P::Effect>, PrepareError> {
-        debug!("Combine with another Prepare[{}]", type_name::<P>());
+        debug!(
+            action = "Combine",
+            "type" = "Prepare",
+            name = type_name::<P>()
+        );
         let prepare_fut = prepare
             .prepare(configure)
             .map_err(PrepareError::to_prepare_error::<P, _>);
@@ -237,9 +247,13 @@ where
     ) -> Result<CombineEffects<Route, Graceful, Extension, Server, E>, PrepareError> {
         {
             let fut_size = size_of_val(&fut);
-            debug!("Incoming Future[{fut_size} Bytes]");
+            debug!(future.size = format!("{fut_size} Bytes"));
             if fut_size > 5 * 1024 {
-                warn!("The Future[{fut_size} Bytes] Greater then 5KB, Pin to Heap instead Stack");
+                warn!(
+                    future.size = format!("{fut_size} Bytes"),
+                    situation = "Too Large",
+                    suggest = "Pin to Heap"
+                );
             }
         };
         let effect = fut.await?;

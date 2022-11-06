@@ -43,6 +43,7 @@ impl<'i> CodeGen<'i> {
                     map_to: ty,
                     map_by: by,
                     life: lifetime_inner,
+                    field_ty: &info.ty,
                 },
             ),
         )
@@ -109,8 +110,9 @@ impl<'i> ToTokens for CodeGen<'i> {
 pub struct MapToCodeGen<'i> {
     provider: &'i Ident,
     field_name: &'i Ident,
+    field_ty: &'i Type,
     map_to: &'i Type,
-    map_by: &'i syn::Path,
+    map_by: &'i syn::Expr,
     life: &'i Option<Lifetime>,
 }
 
@@ -122,6 +124,7 @@ impl<'i> ToTokens for MapToCodeGen<'i> {
             map_to,
             map_by,
             life,
+            field_ty,
         } = self;
 
         let lifetime = match life {
@@ -131,7 +134,11 @@ impl<'i> ToTokens for MapToCodeGen<'i> {
             None => quote::quote!('r),
         };
         let fetch = quote::quote! {
-            #map_by( &self.#field_name )
+            fn __fetcher() -> impl for<#life> Fn(& #life #field_ty) -> #map_to{
+                #map_by
+            }
+
+            (  __fetcher() ) ( &self.#field_name )
         };
 
         let token = quote::quote! {

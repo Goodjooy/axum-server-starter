@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     iter::Cloned,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
@@ -14,52 +14,39 @@ use axum_starter::{
     graceful::SetGraceful,
     prepare,
     router::{Fallback, Nest, Route},
-    ConfigureServerEffect, EffectsCollector, LoggerInitialization, PreparedEffect, Provider,
-    ServeAddress, ServerPrepare,
+    EffectsCollector, PreparedEffect, Provider, ServerPrepare,
 };
+use axum_starter_macro::Configure;
 use futures::FutureExt;
 
 use std::slice::Iter;
 use tower_http::trace::TraceLayer;
 /// configure for server starter
-#[derive(Debug, Provider)]
+#[derive(Debug, Provider, Configure)]
+#[conf(
+    address(func(path = "|this|this.bar")),
+    logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
+    server
+)]
 struct Configure {
     #[provider(ref, transparent)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
-    #[provider(skip)]
+    #[provider(transparent)]
     bar: SocketAddr,
 
     foo_bar: (i32, i32),
     #[provider(
         transparent,
-        map_to(ty = "Cloned<Iter<'a, i32>>", by = "vec_iter", lifetime = "'a")
+        map_to(
+            ty = "Cloned<Iter<'a, i32>>",
+            by = "|vec|vec.iter().cloned()",
+            lifetime = "'a"
+        )
     )]
     iter: Vec<i32>,
 }
-
-fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
-    vec.iter().cloned()
-}
-
-impl LoggerInitialization for Configure {
-    type Error = log::SetLoggerError;
-
-    fn init_logger(&self) -> Result<(), Self::Error> {
-        simple_logger::init()
-    }
-}
-
-impl ServeAddress for Configure {
-    type Address = SocketAddr;
-
-    fn get_address(&self) -> Self::Address {
-        self.bar
-    }
-}
-
-impl ConfigureServerEffect for Configure {}
 
 impl Configure {
     pub fn new() -> Self {
@@ -73,8 +60,8 @@ impl Configure {
 }
 // prepares
 
-#[prepare(LifetimeBound 'arg)]
-fn lifetime_bound<'arg, I>(iter: I)
+#[prepare(LifetimeBound)]
+fn lifetime_bound<I>(iter: I)
 where
     I: IntoIterator<Item = i32>,
 {

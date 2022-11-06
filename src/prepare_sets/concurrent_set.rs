@@ -1,4 +1,6 @@
-use std::{any::type_name, sync::Arc};
+#[allow(unused_imports)]
+use std::any::type_name;
+use std::sync::Arc;
 
 use futures::{
     future::{join, ok, Ready},
@@ -49,8 +51,9 @@ where
         impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
     > {
         debug!(
-            "Adding Prepare[{}] task executing concurrently",
-            type_name::<P>()
+            mode = "concurrently",
+            action = "Adding Prepare",
+            prepare = type_name::<P>(),
         );
 
         let configure = Arc::clone(&self.configure);
