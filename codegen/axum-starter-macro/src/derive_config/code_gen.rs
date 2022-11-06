@@ -49,11 +49,19 @@ impl<'r> ToTokens for ImplAddress<'r> {
             .map(|fetch| {
                 if *associate_fetcher {
                     quote::quote!(
-                        (#fetch) ()
+                        fn __fetcher() -> impl Fn() -> #ty{
+                            #fetch
+                        }
+
+                        (__fetcher()) ()
                     )
                 } else {
                     quote::quote!(
-                        (#fetch) (self)
+                        fn __fetcher() -> impl Fn(&#ident) -> #ty{
+                            #fetch
+                        }
+
+                        (__fetcher()) (self)
                     )
                 }
             })
@@ -92,7 +100,6 @@ impl<'r> From<&'r DeriveInput> for Option<ImplInitLog<'r>> {
         })
     }
 }
-
 impl<'r> ToTokens for ImplInitLog<'r> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ImplInitLog {
@@ -105,7 +112,12 @@ impl<'r> ToTokens for ImplInitLog<'r> {
         let call = if *associate {
             quote::quote!((#init)())
         } else {
-            quote::quote!(( #init ) ( self ))
+            quote::quote!(
+                fn __fetcher() -> 
+                impl Fn(&#ident) -> ::core::result::Result<(), #err_type>{
+                    #init
+                }
+                ( __fetcher() ) ( self ))
         };
 
         let token = quote::quote! {
