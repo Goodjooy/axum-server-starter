@@ -18,7 +18,7 @@ pub struct DeriveInput {
 pub enum Address {
     Provide(Override<Provider>),
     Func {
-        path: Path,
+        path: Expr,
         #[darling(default)]
         ty: Option<Type>,
         #[darling(default)]

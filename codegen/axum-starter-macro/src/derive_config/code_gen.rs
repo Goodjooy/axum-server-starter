@@ -6,7 +6,7 @@ use super::derive_inputs::{Address, DeriveInput, Logger, Provider};
 pub struct ImplAddress<'r> {
     ident: &'r syn::Ident,
     ty: Option<&'r Type>,
-    fetcher: Option<&'r Path>,
+    fetcher: Option<&'r Expr>,
     associate_fetcher: bool,
 }
 
@@ -103,7 +103,7 @@ impl<'r> ToTokens for ImplInitLog<'r> {
         } = self;
 
         let call = if *associate {
-            quote::quote!(#init())
+            quote::quote!((#init)())
         } else {
             quote::quote!(( #init ) ( self ))
         };
