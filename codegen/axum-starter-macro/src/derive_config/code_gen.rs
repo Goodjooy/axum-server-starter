@@ -113,8 +113,8 @@ impl<'r> ToTokens for ImplInitLog<'r> {
             quote::quote!((#init)())
         } else {
             quote::quote!(
-                fn __fetcher() -> 
-                impl Fn(&#ident) -> ::core::result::Result<(), #err_type>{
+                fn __fetcher()
+                -> impl Fn(&#ident) -> ::core::result::Result<(), #err_type>{
                     #init
                 }
                 ( __fetcher() ) ( self ))

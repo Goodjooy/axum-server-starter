@@ -110,7 +110,7 @@ impl<'i> ToTokens for CodeGen<'i> {
 pub struct MapToCodeGen<'i> {
     provider: &'i Ident,
     field_name: &'i Ident,
-    field_ty:&'i Type,
+    field_ty: &'i Type,
     map_to: &'i Type,
     map_by: &'i syn::Expr,
     life: &'i Option<Lifetime>,
@@ -136,7 +136,7 @@ impl<'i> ToTokens for MapToCodeGen<'i> {
         let fetch = quote::quote! {
             fn __fetcher() -> impl for<#life> Fn(& #life #field_ty) -> #map_to{
                 #map_by
-            } 
+            }
 
             (  __fetcher() ) ( &self.#field_name )
         };

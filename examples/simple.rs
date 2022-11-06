@@ -48,7 +48,6 @@ struct Configure {
     iter: Vec<i32>,
 }
 
-
 impl Configure {
     pub fn new() -> Self {
         Self {
