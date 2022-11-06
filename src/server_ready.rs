@@ -1,6 +1,6 @@
-use std::future::IntoFuture;
 
 use axum::{routing::IntoMakeService, Router};
+use futures::Future;
 use hyper::{server::conn::AddrIncoming, Body};
 
 use crate::info;
@@ -11,10 +11,10 @@ pub enum ServerReady<G> {
     Graceful(G),
 }
 
-impl<G: IntoFuture<Output = hyper::Result<()>>> ServerReady<G> {
+impl<G: Future<Output = hyper::Result<()>>> ServerReady<G> {
     /// start this server
     pub async fn launch(self) -> hyper::Result<()> {
-        info!("Starting server");
+        info!(service.status = "Starting");
         match self {
             ServerReady::Server(s) => s.await?,
             ServerReady::Graceful(g) => g.await?,

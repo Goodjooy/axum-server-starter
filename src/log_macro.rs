@@ -2,44 +2,44 @@
 macro_rules! info {
     ($($t:tt)*) => {
         #[cfg(feature = "logger")]
-        ::log::info!($($t)*);
+        ::tracing::info!($($t)*);
         #[cfg(not(feature = "logger"))]
-        let _ = format!($($t)*);
+        let _ = stringify!($($t)*);
     };
 }
 #[macro_export(crate)]
 macro_rules! error {
     ($($t:tt)*) => {
         #[cfg(feature = "logger")]
-        ::log::error!($($t)*);
+        ::tracing::error!($($t)*);
         #[cfg(not(feature = "logger"))]
-        let _ = format!($($t)*);
+        let _ = stringify!($($t)*);
     };
 }
 #[macro_export(crate)]
 macro_rules! warn {
     ($($t:tt)*) => {
         #[cfg(feature = "logger")]
-        ::log::warn!($($t)*);
+        ::tracing::warn!($($t)*);
         #[cfg(not(feature = "logger"))]
-        let _ = format!($($t)*);
+        let _ = stringify!($($t)*);
     };
 }
 #[macro_export(crate)]
 macro_rules! trace {
     ($($t:tt)*) => {
         #[cfg(feature = "logger")]
-        ::log::trace!($($t)*);
+        ::tracing::trace!($($t)*);
         #[cfg(not(feature = "logger"))]
-        let _ = format!($($t)*);
+        let _ = stringify!($($t)*);
     };
 }
 #[macro_export(crate)]
 macro_rules! debug {
     ($($t:tt)*) => {
         #[cfg(feature = "logger")]
-        ::log::debug!($($t)*);
+        ::tracing::debug!($($t)*);
         #[cfg(not(feature = "logger"))]
-        let _ = format!($($t)*);
+        let _ = stringify!($($t)*);
     };
 }

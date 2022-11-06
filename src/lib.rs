@@ -2,6 +2,7 @@
 #![doc = include_str!("../Readme.md")]
 mod config_provide;
 mod effect_utils;
+mod fake_span;
 mod log_macro;
 mod prepare_handler;
 mod prepare_sets;
