@@ -81,9 +81,8 @@ impl ServeAddress for Config {
 impl ConfigureServerEffect for Config {}
 
 fn show_address(addr: SocketAddr) -> impl Future<Output = ()> {
-    async move {
-        println!("server serve at http://{:?}", addr);
-    }
+    println!("server serve at http://{:?}", addr);
+    async {}
 }
 
 async fn echo_handler() -> EchoEffect {
@@ -130,11 +129,10 @@ async fn print_init() {
 async fn ctrl_c_stop() -> CtrlCEffect<impl Future<Output = ()>> {
     let (tx, rx) = oneshot::channel();
     tokio::spawn(async move {
-        match tokio::signal::ctrl_c().await {
-            _ => {
-                println!("recv ctrl c");
-                tx.send(())
-            }
+        tokio::signal::ctrl_c().await.ok();
+        {
+            println!("recv ctrl c");
+            tx.send(())
         }
     });
     tokio::task::yield_now().await;

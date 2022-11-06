@@ -24,7 +24,7 @@ use tower_http::trace::TraceLayer;
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
 #[conf(
-    address(provide),
+    address(func(path = "|this|this.bar")),
     logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
     server
 )]
@@ -39,13 +39,13 @@ struct Configure {
     foo_bar: (i32, i32),
     #[provider(
         transparent,
-        map_to(ty = "Cloned<Iter<'a, i32>>", by = "vec_iter", lifetime = "'a")
+        map_to(
+            ty = "Cloned<Iter<'a, i32>>",
+            by = "|vec|vec.iter().cloned()",
+            lifetime = "'a"
+        )
     )]
     iter: Vec<i32>,
-}
-
-fn vec_iter<T: std::clone::Clone>(vec: &Vec<T>) -> Cloned<Iter<'_, T>> {
-    vec.iter().cloned()
 }
 
 impl Configure {
@@ -60,8 +60,8 @@ impl Configure {
 }
 // prepares
 
-#[prepare(LifetimeBound 'arg)]
-fn lifetime_bound<'arg, I>(iter: I)
+#[prepare(LifetimeBound)]
+fn lifetime_bound<I>(iter: I)
 where
     I: IntoIterator<Item = i32>,
 {
