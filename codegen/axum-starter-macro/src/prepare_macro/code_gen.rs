@@ -90,7 +90,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             )
         };
 
-        let extra_bounds = prepare_generic.where_closure;
+        let extra_bounds = prepare_generic.where_closure.as_ref();
 
         let impl_bounds = call_args.iter().map(|ty| {
             quote::quote! {

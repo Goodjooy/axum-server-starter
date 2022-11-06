@@ -1,161 +1,91 @@
 # Axum Starter
 
+[![Github](https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github)](https://github.com/Goodjooy/axum-server-starter)
+[![Crates.io](https://img.shields.io/crates/v/axum-starter.svg?style=for-the-badge)](https://crates.io/crates/axum-starter)
+![Licente](https://img.shields.io/github/license/Goodjooy/axum-server-starter?style=for-the-badge)
+
 ## Why axum-starter
 
 With the growing of the server functions, the code which prepare multiply infrastructures for the server in the main become more and more complex.  
 For example, I need connect to `Mysql` and `Redis`, start `MessageQuery` , start GracefulShutdown and so on.  
 In other to simplify the start up code with my server project, there comes the `axum-starter`
 
-## Quick Start
+## Simple Example
 
 The following example using `axum-starter` starting a web server which
-server on `http://127.0.0.1:8080`
+server on `http://127.0.0.1:5050`
 
 It can do
 
-1. show info before launch
+1. show info before launch (with `logger` feature)
 2. using `simple_logger` and adding TraceLayer as logger middleware
-3. request `http://127.0.0.1:8080/{name}` will respond greet with your name
-4. using `ctrl + c` can graceful stop the server
+3. request `http://127.0.0.1:5050/greet/{name}` will respond greet with your name
 
 ```rust
-
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-
-use axum::{
-    extract::{OriginalUri, Path},
-    handler::Handler,
-    routing::get,
-    Router,
-};
-use axum_starter::{
-    graceful::SetGraceful,
-    prepare,
-    router::{Fallback, Nest, Route},
-    ConfigureServerEffect, EffectsCollector, LoggerInitialization, PreparedEffect, Provider,
-    ServeAddress, ServerPrepare,
-};
-use futures::FutureExt;
-
+use axum::{extract::Path, routing::get};
+use axum_starter::{prepare, router::Route, PreparedEffect, ServerPrepare};
+use config::Conf;
 use tower_http::trace::TraceLayer;
-
-/// configure for server starter
-#[derive(Debug, Provider)]
-struct Configure {
-    #[provider(ref, transparent)]
-    #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
-    #[provider(map_to(ty = "String", by = "Clone::clone"))]
-    foo: String,
-    #[provider(skip)]
-    bar: SocketAddr,
-
-    foo_bar: (i32, i32),
-}
-
-impl LoggerInitialization for Configure {
-    type Error = log::SetLoggerError;
-
-    fn init_logger(&self) -> Result<(), Self::Error> {
-        simple_logger::init()
-    }
-}
-
-impl ServeAddress for Configure {
-    type Address = SocketAddr;
-
-    fn get_address(&self) -> Self::Address {
-        self.bar
-    }
-}
-
-impl ConfigureServerEffect for Configure {}
-
-impl Configure {
-    pub fn new() -> Self {
-        Self {
-            foo: "Foo".into(),
-            bar: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)),
-            foo_bar: (1, 2),
-        }
-    }
-}
-// prepares
-
-/// if need ref args ,adding a lifetime
-#[prepare(ShowFoo 'arg)]
-fn show_foo<S>(f: &'arg S)
-where
-    S: AsRef<str> + ?Sized,
-{
-    println!("this is Foo {}", f.as_ref())
-}
-
-#[prepare(ShowValue)]
-fn the_value<const V: i32>() {
-    println!("The value is {}", V)
-}
-
-/// using `#[prepare]`
-#[prepare(EchoRouter)]
-fn echo() -> impl PreparedEffect {
-    Route::new(
-        "/:echo",
-        get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
-    )
-}
-#[prepare(C)]
-fn routers() -> impl PreparedEffect {
-    EffectsCollector::new()
-        .with_route(Nest::new(
-            "/aac/b",
-            Router::new().route(
-                "/a",
-                get(|OriginalUri(uri): OriginalUri| async move { format!("welcome {uri}") }),
-            ),
-        ))
-        .with_route(Fallback::new(Handler::into_service(|| async { "oops" })))
-        .with_server(axum_starter::service::ConfigServer::new(|s| {
-            s.http1_only(true)
-        }))
-}
-
-#[prepare(box Show)]
-async fn show(FooBar((x, y)): FooBar) {
-    println!("the foo bar is local at ({x}, {y})")
-}
-
-/// function style prepare
-async fn graceful_shutdown() -> impl PreparedEffect {
-    SetGraceful::new(
-        tokio::signal::ctrl_c()
-            .map(|_| println!("recv Exit msg"))
-            .map(|_| ()),
-    )
-}
 
 #[tokio::main]
 async fn main() {
-    start().await
+    start().await;
 }
 
 async fn start() {
-    ServerPrepare::with_config(Configure::new())
+    ServerPrepare::with_config(Conf::default())
         .init_logger()
-        .expect("Init Logger Failure")
-        .append(ShowValue::<_, 11>)
-        .append_concurrent(|set| set.join(ShowFoo::<_, str>).join(C).join(Show))
-        .append_fn(graceful_shutdown)
-        .append(EchoRouter)
+        .expect("Init Logger Error")
+        .append(GreetRoute)
         .with_global_middleware(TraceLayer::new_for_http())
         .prepare_start()
         .await
-        .expect("Prepare for starting server failure ")
+        .expect("Prepare for Start Error")
         .launch()
         .await
-        .expect("Server Error")
+        .expect("Server Error");
 }
 
+mod config {
+    use std::net::Ipv4Addr;
+
+    use axum_starter::{Configure, Provider};
+    use log::LevelFilter;
+    use log::SetLoggerError;
+    use simple_logger::SimpleLogger;
+
+    // prepare the init configure
+    #[derive(Debug, Default, Provider, Configure)]
+    #[conf(
+        address(func(
+            path = "||(Ipv4Addr::LOCALHOST, 5050)",
+            ty = "(Ipv4Addr, u16)",
+            associate,
+        )),
+        logger(
+            func = "||SimpleLogger::new().with_level(LevelFilter::Debug).init()",
+            error = "SetLoggerError",
+            associate,
+        ),
+        server
+    )]
+    pub(super) struct Conf {}
+}
+
+async fn greet(Path(name): Path<String>) -> String {
+    format!("Welcome {name} !")
+}
+
+#[prepare(GreetRoute)]
+fn greet_route() -> impl PreparedEffect {
+    Route::new("/greet/:name", get(greet))
+}
 ```
+
+## Core Concept
+
+Each task before starting the server call `Prepare`. Each `Prepare` will Return a `PreparedEffect` for `ServerPrepare` to apply each prepare's effect on the server.
+Finally, all `Prepare` are done and the server can be launch
 
 ### `Prepare` trait
 
@@ -170,3 +100,12 @@ the trait will apply multiply effect on the server. include the following
 - Extension
 - GracefulShutdown
 - setting the internal `hyper::Server`
+
+## `Concurrently` or `Serially`
+
+`Prepare`s will run one by one in default, in another word, they running _serially_,
+if you want run some `Prepare`s _concurrently_, you can call `ServerPrepare::append_concurrent`, to give a group of `Prepare`s running _concurrently_
+
+## Set Middleware
+
+if you want to adding a middleware on the root of server `Router`, using `ServerPrepare::with_global_middleware` then giving the `Layer`

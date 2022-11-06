@@ -1,8 +1,8 @@
 mod error;
+#[allow(unused_imports)]
+use std::any::type_name;
 use std::{
-    any::type_name,
     convert::Infallible,
-    future::IntoFuture,
     marker::{PhantomData, Send},
     sync::Arc,
 };
@@ -41,15 +41,25 @@ pub struct LogInit;
 pub struct ServerPrepare<C, L, FutEffect, Log = LogInit> {
     prepares: SerialPrepareSet<C, FutEffect>,
     middleware: ServiceBuilder<L>,
+    #[cfg(feature = "logger")]
+    span: tracing::Span,
+    #[cfg(not(feature = "logger"))]
+    span: crate::fake_span::FakeSpan,
     _phantom: PhantomData<Log>,
 }
 
 impl<C, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
-    fn new(prepares: SerialPrepareSet<C, FutEffect>, middleware: ServiceBuilder<L>) -> Self {
+    fn new(
+        prepares: SerialPrepareSet<C, FutEffect>,
+        middleware: ServiceBuilder<L>,
+        #[cfg(feature = "logger")] span: tracing::Span,
+        #[cfg(not(feature = "logger"))] span: crate::fake_span::FakeSpan,
+    ) -> Self {
         Self {
             prepares,
             middleware,
             _phantom: PhantomData,
+            span,
         }
     }
 }
@@ -60,9 +70,17 @@ where
 {
     /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
-        self.prepares.get_ref_configure().init_logger()?;
-        info!("init Logger done");
-        Ok(ServerPrepare::new(self.prepares, self.middleware))
+        self.span.in_scope(|| {
+            let t = self.prepares.get_ref_configure().init_logger();
+            info!(logger = "Init");
+            t
+        })?;
+
+        Ok(ServerPrepare::new(
+            self.prepares,
+            self.middleware,
+            self.span,
+        ))
     }
 }
 
@@ -71,9 +89,14 @@ impl<C: 'static> ServerPrepare<C, Identity, Ready<Result<EffectsCollector, Prepa
     where
         C: ServeAddress,
     {
+        #[cfg(feature = "logger")]
+        let span = tracing::debug_span!("prepare server start");
+        #[cfg(not(feature = "logger"))]
+        let span = crate::fake_span::FakeSpan;
         ServerPrepare::new(
             SerialPrepareSet::new(Arc::new(config)),
             ServiceBuilder::new(),
+            span,
         )
     }
 }
@@ -119,12 +142,13 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         E: ExtensionEffect,
         S: ServerEffect,
     {
-        debug!("Start adding Prepare Task executing concurrently");
-        let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
-        let prepares = self
-            .prepares
-            .then_fut_effect(concurrent(concurrent_set).to_prepared_effect());
-        ServerPrepare::new(prepares, self.middleware)
+        let prepares = self.span.in_scope(|| {
+            debug!(mode = "Concurrent", action = "Add Prepare");
+            let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
+            self.prepares
+                .then_fut_effect(concurrent(concurrent_set).to_prepared_effect())
+        });
+        ServerPrepare::new(prepares, self.middleware, self.span)
     }
 
     /// adding a [Prepare]
@@ -160,9 +184,16 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         E: ExtensionEffect,
         P: Prepare<C>,
     {
-        let prepares = self.prepares.then(prepare);
+        let prepares = self.span.in_scope(|| {
+            debug!(
+                mode = "Serial",
+                action = "Add Prepare",
+                prepare = type_name::<P>()
+            );
+            self.prepares.then(prepare)
+        });
 
-        ServerPrepare::new(prepares, self.middleware)
+        ServerPrepare::new(prepares, self.middleware, self.span)
     }
     /// adding a function-style [Prepare]
     pub fn append_fn<F, Args, R, S, G, E>(
@@ -199,15 +230,17 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
     /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
     /// axum requirement
     pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>, FutEffect> {
-        debug!("Adding global middleware[{}]", type_name::<M>());
-        ServerPrepare::new(self.prepares, self.middleware.layer(layer))
+        self.span.in_scope(|| {
+            debug!(middleware.layer = type_name::<M>());
+        });
+        ServerPrepare::new(self.prepares, self.middleware.layer(layer), self.span)
     }
     /// prepare to start this server
     ///
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
     pub async fn prepare_start<Effect, NewResBody>(
         self,
-    ) -> Result<ServerReady<impl IntoFuture<Output = Result<(), hyper::Error>>>, PrepareError>
+    ) -> Result<ServerReady<impl Future<Output = Result<(), hyper::Error>>>, PrepareError>
     where
         C: ServeAddress + ConfigureServerEffect,
         ServiceBuilder<L>: Layer<Route>,
@@ -221,37 +254,53 @@ impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
         FutEffect: Future<Output = Result<Effect, PrepareError>>,
         Effect: PreparedEffect,
     {
-        let (prepare_fut, configure) = self.prepares.unwrap();
-        debug!("Waiting for all Prepare task done");
-        let (extension_effect, route_effect, graceful_effect, server_effect) =
-            prepare_fut.await?.split_effect();
+        async {
+            let (prepare_fut, configure) = self.prepares.unwrap();
+            debug!(execute = "Prepare");
+            let (extension_effect, route_effect, graceful_effect, server_effect) =
+                prepare_fut.await?.split_effect();
 
-        debug!("Apple Route Effect and Extension Effect");
-        let router = Router::new()
-            // apply prepare effect on router
-            .pipe(|router| route_effect.add_router(router))
-            // apply prepare extension
-            .pipe(|router| extension_effect.apply_extension(router))
-            // adding middleware
-            .pipe(|router| router.layer(self.middleware));
+            debug!(effect = "Router");
+            let router = Router::new()
+                // apply prepare effect on router
+                .pipe(|router| route_effect.add_router(router))
+                // apply prepare extension
+                .pipe(|router| extension_effect.apply_extension(router))
+                // adding middleware
+                .pipe(|router| router.layer(self.middleware));
 
-        debug!("Apple Graceful Shutdown Effect");
-        let graceful = graceful_effect.set_graceful();
+            debug!(effect = "Graceful Shutdown");
+            let graceful = graceful_effect.set_graceful();
 
-        debug!("Apple Graceful Server Effect");
-        let server = server::Server::bind(&ServeAddress::get_address(&*configure).into())
-            // apply effect config server
-            .pipe(|server| server_effect.config_serve(server))
-            // apply configure config server
-            .pipe(|server| configure.effect_server(server))
-            .serve(router.into_make_service());
+            debug!(effect = "Server");
+            let server = server::Server::bind(&ServeAddress::get_address(&*configure).into())
+                // apply effect config server
+                .pipe(|server| server_effect.config_serve(server))
+                // apply configure config server
+                .pipe(|server| configure.effect_server(server))
+                .serve(router.into_make_service());
 
-        debug!("All prepare down, ready to launch");
-        info!("Server on {}", configure.get_address().into());
+            debug!(effect = "All Done");
+            info!(
+                service.address = %configure.get_address().into(),
+                service.status = "Ready"
+            );
 
-        Ok(match graceful {
-            Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut)),
-            None => ServerReady::Server(server),
+            Ok(match graceful {
+                Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut)),
+                None => ServerReady::Server(server),
+            })
+        }
+        .pipe(|fut| {
+            #[cfg(feature = "logger")]
+            {
+                tracing::Instrument::instrument(fut, self.span)
+            }
+            #[cfg(not(feature = "logger"))]
+            {
+                fut
+            }
         })
+        .await
     }
 }

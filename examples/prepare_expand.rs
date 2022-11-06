@@ -61,11 +61,10 @@ fn adding_echo() -> impl PreparedEffect {
 async fn graceful_shutdown() -> impl PreparedEffect {
     let (tx, rx) = oneshot::channel();
     tokio::spawn(async move {
-        match tokio::signal::ctrl_c().await {
-            _ => {
-                println!("recv ctrl c");
-                tx.send(())
-            }
+        tokio::signal::ctrl_c().await.ok();
+        {
+            println!("recv ctrl c");
+            tx.send(())
         }
     });
     tokio::task::yield_now().await;

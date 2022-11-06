@@ -1,3 +1,5 @@
+use syn::{spanned::Spanned, Expr};
+
 pub(crate) fn snake_to_upper(src: &str) -> String {
     let mut st = String::with_capacity(src.len());
     let chars = src.chars();
@@ -26,6 +28,14 @@ macro_rules! darling_err {
             Err(err) => return err.write_errors().into(),
         }
     };
+}
+
+pub fn check_callable_expr(expr: &Expr) -> Result<(), syn::Error> {
+    if let Expr::Path(_) | Expr::Closure(_) = expr {
+        Ok(())
+    } else {
+        Err(syn::Error::new(expr.span(), "Expect `Path` or `Closure`"))
+    }
 }
 
 #[cfg(test)]
