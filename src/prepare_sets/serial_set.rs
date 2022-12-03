@@ -41,7 +41,7 @@ impl<C, PFut, R, L> SerialPrepareSet<C, PFut>
 where
     PFut: Future<Output = Result<EffectContainer<R, L>, PrepareError>>,
 {
-    /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
+    /// get the [Future]
     pub fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }

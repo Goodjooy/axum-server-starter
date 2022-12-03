@@ -6,6 +6,8 @@ pub struct StateNotReady;
 pub struct StateReady<S>(PhantomData<S>);
 
 impl<C, FutEffect, Log, Graceful> ServerPrepare<C, FutEffect, Log, StateNotReady, Graceful> {
+    /// convert internal [`StateCollector`](crate::StateCollector) to special
+    /// State
     pub fn convert_state<S: FromStateCollector>(
         self,
     ) -> ServerPrepare<C, FutEffect, Log, StateReady<S>, Graceful> {

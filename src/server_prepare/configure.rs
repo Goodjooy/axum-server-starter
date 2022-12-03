@@ -18,8 +18,7 @@ pub trait LoggerInitialization {
     }
 }
 
-/// change the server configure, this operate can overwrite
-/// [PrepareEffect](crate::PreparedEffect)
+/// change the server configure
 pub trait ConfigureServerEffect {
     fn effect_server(
         &self,

@@ -29,7 +29,7 @@ impl<C, PFut> ConcurrentPrepareSet<C, PFut>
 where
     PFut: Future<Output = Result<StateCollector, PrepareError>>,
 {
-    /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
+    /// get the [Future]
     pub fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }

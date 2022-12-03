@@ -95,9 +95,9 @@ pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// - `()`
 /// - `Result<impl @, CustomError>`
 /// - `impl @`
-/// > the `@` can be [PrepareRouteEffect](axum_starter::PrepareRouteEffect),
-/// [PrepareStateEffect](axum_starter::PrepareRouteEffect) or
-///  [PrepareMiddlewareEffect](axum_starter::PrepareMiddlewareEffect)
+/// > the `@` can be `PrepareRouteEffect`,
+/// `PrepareStateEffect` or
+///  `PrepareMiddlewareEffect`
 ///
 /// **Note** if the return type is `Result<impl @, Error>`, need add `?` following the
 /// generate Name

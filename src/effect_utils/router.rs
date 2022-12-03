@@ -4,7 +4,7 @@ use axum::{handler::Handler, routing::MethodRouter, Router};
 
 use crate::prepare_behave::effect_traits::PrepareRouteEffect;
 
-/// [PreparedEffect](crate::PreparedEffect) add route
+/// [PrepareRouteEffect] add route
 ///
 /// ## Note
 /// calling [Router::route](axum::Router::route)
@@ -26,7 +26,7 @@ impl<S: 'static, B: 'static> PrepareRouteEffect<S, B> for Route<S, B> {
     }
 }
 
-/// [PreparedEffect](crate::PreparedEffect) merge router
+/// [PrepareRouteEffect] merge router
 ///
 /// ## Note
 /// calling [Router::merge](axum::Router::merge)
@@ -52,7 +52,7 @@ where
     }
 }
 
-/// [PreparedEffect](crate::PreparedEffect) nest router
+/// [PrepareRouteEffect] nest router
 ///
 /// ## Note
 /// calling [Router::nest](axum::Router::nest)
@@ -77,7 +77,7 @@ where
     }
 }
 
-/// [PreparedEffect](crate::PreparedEffect) set fallback handle
+/// [PrepareRouteEffect] set fallback handle
 ///
 /// ## Note
 /// calling [Router::fallback](axum::Router::fallback)

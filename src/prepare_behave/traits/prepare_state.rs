@@ -3,7 +3,7 @@ use crate::prepare_behave::effect_collectors::state_collector::StateCollector;
 /// Prepare for Global State
 ///
 /// for instance the Connection Pool of Database
-/// prepare side effect of [PrepareState]
+
 pub trait PrepareStateEffect: 'static {
     fn take_state(self, states: &mut StateCollector);
 }

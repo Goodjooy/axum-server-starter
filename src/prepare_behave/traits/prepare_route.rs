@@ -1,7 +1,7 @@
 use axum::Router;
 use http_body::Body;
 
-/// prepare side effect of [PrepareRoute]
+/// prepare side effect of [Router](axum::Router)
 pub trait PrepareRouteEffect<S, B>: 'static + Sized {
     fn set_route(self, route: Router<S, B>) -> Router<S, B>
     where

@@ -23,7 +23,7 @@ It can do
 
 ```rust
 use axum::{extract::Path, routing::get};
-use axum_starter::{prepare, router::Route, PreparedEffect, ServerPrepare};
+use axum_starter::{prepare, router::Route, PrepareRouteEffect, ServerPrepare};
 use config::Conf;
 use tower_http::trace::TraceLayer;
 
@@ -77,7 +77,11 @@ async fn greet(Path(name): Path<String>) -> String {
 }
 
 #[prepare(GreetRoute)]
-fn greet_route() -> impl PreparedEffect {
+fn greet_route<S, B>() -> impl PrepareRouteEffect<S, B> 
+where
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+{
     Route::new("/greet/:name", get(greet))
 }
 ```
@@ -92,14 +96,13 @@ Finally, all `Prepare` are done and the server can be launch
 the trait define how to apply the prepare task,
 after prepare down, it return a `PreparedEffect`
 
-### `PreparedEffect` trait
+### `PreparedEffect` trait family
 
-the trait will apply multiply effect on the server. include the following
+the trait family will apply multiply effect on the server. include the following
 
 - Router
-- Extension
-- GracefulShutdown
-- setting the internal `hyper::Server`
+- State
+- Middleware
 
 ## `Concurrently` or `Serially`
 
@@ -108,4 +111,7 @@ if you want run some `Prepare`s _concurrently_, you can call `ServerPrepare::app
 
 ## Set Middleware
 
-if you want to adding a middleware on the root of server `Router`, using `ServerPrepare::with_global_middleware` then giving the `Layer`
+if you want to adding a middleware on the root of server `Router`, using [`ServerPrepare::layer`](crate::ServerPrepare::layer) then giving the `Layer`
+
+or using [`PrepareMiddlewareEffect`](crate::PrepareMiddlewareEffect) apply middleware in [`Prepare`](crate::Prepare)
+

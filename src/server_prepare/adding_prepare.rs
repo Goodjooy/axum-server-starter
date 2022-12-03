@@ -17,7 +17,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
     ///
     /// # Note
     ///
-    /// [Prepare] set added by different [Self::append_concurrent] will be execute serially
+    /// [Prepare] set added by different [Self::prepare_concurrent] will be execute serially
     pub fn prepare_concurrent<F, Fut, R, Li>(
         self,
         concurrent: F,
@@ -44,7 +44,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         ServerPrepare::new(prepares, self.graceful, self.span)
     }
 
-    /// adding a [Prepare] apply effect on route
+    /// adding a [Prepare] apply effect on [**Router**](axum::Router)
     ///
     /// ## Note
     ///
@@ -86,7 +86,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
 
         ServerPrepare::new(prepares, self.graceful, self.span)
     }
-    /// adding a [Prepare] adding effect
+    /// adding a [Prepare] adding effect on **State**
     ///
     /// ## Note
     ///
@@ -121,7 +121,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         ServerPrepare::new(prepares, self.graceful, self.span)
     }
 
-    /// adding a [Prepare] apply  effect on State and Middleware
+    /// adding a [Prepare] apply  effect on **State** and **Middleware**
     ///
     /// ## Note
     ///
@@ -164,6 +164,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         ServerPrepare::new(prepares, self.graceful, self.span)
     }
 
+    /// adding a [Prepare] without effect
     pub fn prepare<P, R, LayerInner>(
         self,
         prepare: P,
