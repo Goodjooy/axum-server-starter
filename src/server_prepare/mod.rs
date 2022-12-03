@@ -52,9 +52,7 @@ pub struct ServerPrepare<C, FutEffect, Log = LogInit, State = StateNotReady, Gra
     _phantom: PhantomData<(Log, State)>,
 }
 
-impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
-    
-}
+impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {}
 
 impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
     fn new(

@@ -45,7 +45,7 @@ impl<'r> InputFn<'r> {
         }
 
         let generic = GenericWithBound::new(&sig.generics, lifetime)?;
-        let ret = match sig.output{
+        let ret = match sig.output {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ref ty) => Some(ty.deref()),
         };

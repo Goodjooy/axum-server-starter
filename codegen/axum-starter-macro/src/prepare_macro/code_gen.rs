@@ -128,9 +128,9 @@ impl<'r> ToTokens for CodeGen<'r> {
                 )#awaiting
         };
 
-        let mapped_func_call = if *may_fall{
+        let mapped_func_call = if *may_fall {
             func_call
-        }else{
+        } else {
             quote::quote!(
                 ::core::result::Result::Ok(
                     #func_call
@@ -150,9 +150,8 @@ impl<'r> ToTokens for CodeGen<'r> {
             mapped_func_call
         };
 
-
         // ret type
-        let ret_type = match ret_type{
+        let ret_type = match ret_type {
             Some(ty) => quote::quote!(#ty),
             None => quote::quote!(()),
         };
@@ -186,7 +185,6 @@ impl<'r> ToTokens for CodeGen<'r> {
         } else {
             Some(quote::quote!(async))
         };
-
 
         // impl prepare
         let token = quote::quote! {

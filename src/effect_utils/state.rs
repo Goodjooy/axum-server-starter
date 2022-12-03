@@ -7,7 +7,7 @@ use crate::prepare_behave::{
 
 pub struct AddState<S>(pub S);
 
-impl<State:'static, Service> PrepareMiddlewareEffect<Service> for AddState<State> {
+impl<State: 'static, Service> PrepareMiddlewareEffect<Service> for AddState<State> {
     type Middleware = Identity;
 
     fn take(self, states: &mut StateCollector) -> Self::Middleware {
@@ -16,7 +16,7 @@ impl<State:'static, Service> PrepareMiddlewareEffect<Service> for AddState<State
     }
 }
 
-impl<S:'static> PrepareStateEffect for AddState<S> {
+impl<S: 'static> PrepareStateEffect for AddState<S> {
     fn take_state(self, states: &mut StateCollector) {
         states.insert(self.0)
     }

@@ -14,7 +14,7 @@ use crate::{
 use super::EffectContainer;
 
 impl<R, L> EffectContainer<R, L> {
-    pub(crate) async fn then_route<S,B, C, P>(
+    pub(crate) async fn then_route<S, B, C, P>(
         self,
         prepare: P,
         configure: Arc<C>,
@@ -23,8 +23,8 @@ impl<R, L> EffectContainer<R, L> {
         C: 'static,
         P: Prepare<C>,
         B: Body + 'static + Send,
-        P::Effect: PrepareRouteEffect<S,B>,
-        S:Clone + Send +'static + Sync
+        P::Effect: PrepareRouteEffect<S, B>,
+        S: Clone + Send + 'static + Sync,
     {
         Ok(self.set_route(
             prepare

@@ -4,7 +4,7 @@ use tower::layer::util::Stack;
 use crate::{
     debug,
     prepare_behave::{
-        effect_traits::{PrepareMiddlewareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
+        effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,
     },
     ConcurrentPrepareSet, PrepareError, ServerPrepare,
@@ -12,7 +12,6 @@ use crate::{
 
 impl<C: 'static, FutEffect, Log, State, Graceful>
     ServerPrepare<C, FutEffect, Log, State, Graceful>
-
 {
     /// adding a set of [Prepare] executing concurrently
     ///
@@ -165,20 +164,12 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         ServerPrepare::new(prepares, self.graceful, self.span)
     }
 
-    pub fn prepare< P, R, LayerInner>(
+    pub fn prepare<P, R, LayerInner>(
         self,
         prepare: P,
     ) -> ServerPrepare<
         C,
-        impl Future<
-            Output = Result<
-                EffectContainer<
-                    R,
-                    LayerInner,
-                >,
-                PrepareError,
-            >,
-        >,
+        impl Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
         Log,
         State,
         Graceful,
@@ -186,9 +177,8 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
     where
         FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
 
-        P: Prepare<C,Effect = ()>,
+        P: Prepare<C, Effect = ()>,
     {
-        
         let prepares = self.span.in_scope(|| {
             debug!(
                 mode = "Serial",

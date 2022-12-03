@@ -26,7 +26,7 @@ impl PrepareError {
 #[derive(Debug, thiserror::Error)]
 pub enum PrepareStartError {
     #[error(transparent)]
-    Prepare(#[from]PrepareError),
+    Prepare(#[from] PrepareError),
     #[error(transparent)]
-    State(#[from]TypeNotInState),
+    State(#[from] TypeNotInState),
 }

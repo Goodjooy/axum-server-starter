@@ -12,7 +12,7 @@ use tower::layer::util::{Identity, Stack};
 use crate::{
     debug,
     prepare_behave::{
-        effect_traits::{PrepareMiddlewareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
+        effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,
     },
     ConcurrentPrepareSet, PrepareError,

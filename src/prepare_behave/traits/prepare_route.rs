@@ -18,7 +18,7 @@ macro_rules! route_effect {
             )*
         {
             #[allow(non_snake_case)]
-            fn set_route(self, route: Router<S, B>) -> Router<S, B> 
+            fn set_route(self, route: Router<S, B>) -> Router<S, B>
             where
                 B: Body + Send + 'static,
                 S: Clone + Send + Sync + 'static

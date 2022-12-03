@@ -17,10 +17,10 @@ impl Parse for PrepareName {
         };
         let ident = input.parse::<syn::Ident>()?;
 
-        let may_fall = if input.peek(Token![?]){
+        let may_fall = if input.peek(Token![?]) {
             input.parse::<Token!(?)>()?;
             true
-        }else{
+        } else {
             false
         };
 

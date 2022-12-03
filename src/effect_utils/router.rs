@@ -87,9 +87,7 @@ pub struct Fallback<H, T> {
 }
 
 impl<R, T> Fallback<R, T> {
-    pub fn new(handle: R) -> Self
-
-    {
+    pub fn new(handle: R) -> Self {
         Self {
             handle,
             __phantom: PhantomData,

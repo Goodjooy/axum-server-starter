@@ -26,8 +26,7 @@ impl StateCollector {
     pub fn take<T: 'static + Any>(&mut self) -> Result<T, TypeNotInState> {
         self.0
             .remove(&TypeId::of::<T>())
-            .map(|data| data.downcast().ok())
-            .flatten()
+            .and_then(|data| data.downcast().ok())
             .map(|data| *data)
             .ok_or(TypeNotInState(type_name::<T>()))
     }
