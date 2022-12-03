@@ -11,21 +11,17 @@ use crate::prepare_behave::effect_traits::PrepareRouteEffect;
 pub struct Route<S, B>(&'static str, MethodRouter<S, B>);
 
 impl<S, B> Route<S, B> {
-    pub fn new(router: &'static str, service: MethodRouter<S, B>) -> Self
-    where
-        S: Clone + Send + Sync + 'static,
-        B: http_body::Body + Send + 'static,
-    {
+    pub fn new(router: &'static str, service: MethodRouter<S, B>) -> Self {
         Self(router, service)
     }
 }
 
-impl<S, B> PrepareRouteEffect<S, B> for Route<S, B>
-where
-    S: Clone + Send + Sync + 'static,
-    B: http_body::Body + Send + 'static,
-{
-    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
+impl<S: 'static, B: 'static> PrepareRouteEffect<S, B> for Route<S, B> {
+    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B>
+    where
+        S: Clone + Send + Sync + 'static,
+        B: http_body::Body + Send + 'static,
+    {
         route.route(self.0, self.1)
     }
 }
@@ -66,11 +62,7 @@ pub struct Nest<S, B> {
 }
 
 impl<S, B> Nest<S, B> {
-    pub fn new(path: &'static str, router: Router<S, B>) -> Self
-    where
-        S: Clone + Send + Sync + 'static,
-        B: http_body::Body + Send + 'static,
-    {
+    pub fn new(path: &'static str, router: Router<S, B>) -> Self {
         Self { path, router }
     }
 }
@@ -95,10 +87,8 @@ pub struct Fallback<H, T> {
 }
 
 impl<R, T> Fallback<R, T> {
-    pub fn new<S, B>(handle: R) -> Self
-    where
-        R: Handler<T, S, B>,
-        T: 'static,
+    pub fn new(handle: R) -> Self
+
     {
         Self {
             handle,

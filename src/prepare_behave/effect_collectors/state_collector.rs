@@ -44,3 +44,9 @@ pub trait FromStateCollector: Sized {
         FromStateCollector::fetch_mut(&mut collector)
     }
 }
+
+impl FromStateCollector for () {
+    fn fetch_mut(_: &mut StateCollector) -> Result<Self, TypeNotInState> {
+        Ok(())
+    }
+}

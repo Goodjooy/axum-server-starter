@@ -2,12 +2,11 @@ use axum::Router;
 use http_body::Body;
 
 /// prepare side effect of [PrepareRoute]
-pub trait PrepareRouteEffect<S, B>: 'static + Sized
-where
-    B: Body + Send + 'static,
-    S: Clone + Send + Sync + 'static,
-{
-    fn set_route(self, route: Router<S, B>) -> Router<S, B>;
+pub trait PrepareRouteEffect<S, B>: 'static + Sized {
+    fn set_route(self, route: Router<S, B>) -> Router<S, B>
+    where
+        B: Body + Send + 'static,
+        S: Clone + Send + Sync + 'static;
 }
 
 macro_rules! route_effect {
@@ -17,11 +16,13 @@ macro_rules! route_effect {
             $(
                 $id: PrepareRouteEffect<S,B>,
             )*
-            B: Body + Send + 'static,
-            S: Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn set_route(self, route: Router<S, B>) -> Router<S, B> {
+            fn set_route(self, route: Router<S, B>) -> Router<S, B> 
+            where
+                B: Body + Send + 'static,
+                S: Clone + Send + Sync + 'static
+            {
                 let ($($id,)*) = self;
 
                 $(
