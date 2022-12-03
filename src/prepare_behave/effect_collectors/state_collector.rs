@@ -45,8 +45,29 @@ pub trait FromStateCollector: Sized {
     }
 }
 
-impl FromStateCollector for () {
-    fn fetch_mut(_: &mut StateCollector) -> Result<Self, TypeNotInState> {
-        Ok(())
-    }
+macro_rules! state_gen {
+    ($($id:ident),*$(,)?) => {
+        impl<$($id : 'static),*> FromStateCollector for ($($id,)*) {
+            #[allow(unused_variables)]
+            fn fetch_mut(collector: &mut StateCollector) -> Result<Self, TypeNotInState> {
+                Ok((
+                    $(
+                        collector.take::<$id>()?,
+                    )*
+
+                ))
+            }
+        }
+
+    };
 }
+
+state_gen!();
+state_gen!(T1);
+state_gen!(T1, T2);
+state_gen!(T1, T2, T3);
+state_gen!(T1, T2, T3, T4);
+state_gen!(T1, T2, T3, T4, T5);
+state_gen!(T1, T2, T3, T4, T5, T6);
+state_gen!(T1, T2, T3, T4, T5, T6, T7);
+state_gen!(T1, T2, T3, T4, T5, T6, T7, T8);

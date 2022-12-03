@@ -202,7 +202,12 @@ async fn start() {
                 .map(|_| println!("recv Exit msg"))
                 .map(|_| ()),
         )
-        .prepare_concurrent(|set| set.join(ShowFoo::<_, String>).join(Show).join(Sleeping))
+        .prepare_concurrent(
+            |set| 
+            set.join(ShowFoo::<_, String>)
+            .join(Show)
+            .join(Sleeping)
+        )
         .prepare_route(EchoRouter)
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
