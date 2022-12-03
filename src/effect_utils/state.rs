@@ -1,13 +1,13 @@
 use tower::layer::util::Identity;
 
 use crate::prepare_behave::{
-    effect_traits::{MiddlewarePrepareEffect, PrepareStateEffect},
+    effect_traits::{PrepareMiddlewareEffect, PrepareStateEffect},
     StateCollector,
 };
 
-pub struct AddState<S>(S);
+pub struct AddState<S>(pub S);
 
-impl<State:'static, Service> MiddlewarePrepareEffect<Service> for AddState<State> {
+impl<State:'static, Service> PrepareMiddlewareEffect<Service> for AddState<State> {
     type Middleware = Identity;
 
     fn take(self, states: &mut StateCollector) -> Self::Middleware {

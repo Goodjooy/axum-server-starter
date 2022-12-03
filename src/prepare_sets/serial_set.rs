@@ -12,7 +12,7 @@ use tower::layer::util::{Identity, Stack};
 use crate::{
     debug,
     prepare_behave::{
-        effect_traits::{MiddlewarePrepareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
+        effect_traits::{PrepareMiddlewareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,
     },
     ConcurrentPrepareSet, PrepareError,
@@ -123,14 +123,14 @@ where
         C,
         impl Future<
             Output = Result<
-                EffectContainer<R, Stack<<P::Effect as MiddlewarePrepareEffect<S>>::Middleware, L>>,
+                EffectContainer<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
                 PrepareError,
             >,
         >,
     >
     where
         P: Prepare<C>,
-        P::Effect: MiddlewarePrepareEffect<S>,
+        P::Effect: PrepareMiddlewareEffect<S>,
     {
         debug!(
             mode = "serially",

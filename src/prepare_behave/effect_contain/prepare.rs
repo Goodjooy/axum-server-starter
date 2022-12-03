@@ -5,7 +5,7 @@ use tower::layer::util::Stack;
 
 use crate::{
     prepare_behave::traits::{
-        prepare_middleware::MiddlewarePrepareEffect, prepare_route::PrepareRouteEffect,
+        prepare_middleware::PrepareMiddlewareEffect, prepare_route::PrepareRouteEffect,
         prepare_state::PrepareStateEffect, Prepare,
     },
     PrepareError,
@@ -57,13 +57,13 @@ impl<R, L> EffectContainer<R, L> {
         prepare: P,
         configure: Arc<C>,
     ) -> Result<
-        EffectContainer<R, Stack<<P::Effect as MiddlewarePrepareEffect<S>>::Middleware, L>>,
+        EffectContainer<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
         PrepareError,
     >
     where
         C: 'static,
         P: Prepare<C>,
-        P::Effect: MiddlewarePrepareEffect<S>,
+        P::Effect: PrepareMiddlewareEffect<S>,
     {
         Ok(self.set_middleware(
             prepare

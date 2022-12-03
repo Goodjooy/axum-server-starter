@@ -9,7 +9,7 @@ use tower::{
 use super::{
     effect_collectors::state_collector::StateCollector,
     traits::{
-        prepare_middleware::MiddlewarePrepareEffect, prepare_route::PrepareRouteEffect,
+        prepare_middleware::PrepareMiddlewareEffect, prepare_route::PrepareRouteEffect,
         prepare_state::PrepareStateEffect,
     },
 };
@@ -44,7 +44,7 @@ impl EffectContainer<(), Identity> {
 }
 
 impl<R, L> EffectContainer<R, L> {
-    pub fn set_middleware<Service, E: MiddlewarePrepareEffect<Service>>(
+    pub fn set_middleware<Service, E: PrepareMiddlewareEffect<Service>>(
         self,
         effect: E,
     ) -> EffectContainer<R, Stack<E::Middleware, L>> {

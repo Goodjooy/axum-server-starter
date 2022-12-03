@@ -4,7 +4,7 @@ use tower::layer::util::Stack;
 use crate::{
     debug,
     prepare_behave::{
-        effect_traits::{MiddlewarePrepareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
+        effect_traits::{PrepareMiddlewareEffect, Prepare, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,
     },
     ConcurrentPrepareSet, PrepareError, ServerPrepare,
@@ -12,6 +12,7 @@ use crate::{
 
 impl<C: 'static, FutEffect, Log, State, Graceful>
     ServerPrepare<C, FutEffect, Log, State, Graceful>
+
 {
     /// adding a set of [Prepare] executing concurrently
     ///
@@ -137,7 +138,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
             Output = Result<
                 EffectContainer<
                     R,
-                    Stack<<P::Effect as MiddlewarePrepareEffect<S>>::Middleware, LayerInner>,
+                    Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, LayerInner>,
                 >,
                 PrepareError,
             >,
@@ -150,7 +151,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
 
         P: Prepare<C>,
-        P::Effect: MiddlewarePrepareEffect<S>,
+        P::Effect: PrepareMiddlewareEffect<S>,
     {
         let prepares = self.span.in_scope(|| {
             debug!(
