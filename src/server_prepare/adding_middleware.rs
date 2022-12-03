@@ -6,7 +6,7 @@ use crate::{debug, prepare_behave::EffectContainer, PrepareError, ServerPrepare}
 impl<C: 'static, FutEffect, Log, State, Graceful>
     ServerPrepare<C, FutEffect, Log, State, Graceful>
 {
-    pub fn layer<S, P, R, LayerInner, M>(
+    pub fn layer<R, LayerInner, M>(
         self,
         middleware: M,
     ) -> ServerPrepare<
@@ -20,23 +20,12 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
     {
         self.span.in_scope(|| {
-            debug!(middleware.layer = type_name::<M>());
+            debug!(middleware.layer = core::any::type_name::<M>());
         });
         ServerPrepare::new(
             self.prepares.set_middleware(middleware),
             self.graceful,
             self.span,
         )
-
-        //     let prepares = self.span.in_scope(|| {
-        //         debug!(
-        //             mode = "Serial",
-        //             action = "Add Prepare Middleware",
-        //             prepare = type_name::<P>()
-        //         );
-        //         self.prepares.then_middleware(prepare)
-        //     });
-
-        //     ServerPrepare::new(prepares, self.middleware, self.span)
     }
 }
