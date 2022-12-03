@@ -1,6 +1,6 @@
-use std::sync::Arc;
 #[allow(unused_imports)]
 use std::{any::type_name, mem::size_of_val};
+use std::{future::IntoFuture, sync::Arc};
 
 use futures::{
     future::{ok, Ready},
@@ -143,6 +143,35 @@ where
         let prepare_fut = self
             .prepare_fut
             .and_then(|collector| collector.then_middleware(prepare, configure));
+
+        SerialPrepareSet {
+            prepare_fut,
+            configure: self.configure,
+        }
+    }
+
+    pub fn then<P>(
+        self,
+        prepare: P,
+    ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
+    where
+        P: Prepare<C, Effect = ()>,
+    {
+        debug!(
+            mode = "serially",
+            action = "Adding Prepare",
+            prepare = type_name::<P>(),
+        );
+
+        let configure = self.get_configure();
+
+        let prepare_fut = self.prepare_fut.and_then(|collect| {
+            prepare
+                .prepare(configure)
+                .into_future()
+                .map_ok(|_| collect)
+                .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
+        });
 
         SerialPrepareSet {
             prepare_fut,

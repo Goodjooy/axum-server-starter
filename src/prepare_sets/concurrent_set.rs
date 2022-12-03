@@ -54,7 +54,7 @@ where
     {
         debug!(
             mode = "concurrently",
-            action = "Adding Prepare",
+            action = "Adding Prepare State",
             prepare = type_name::<P>(),
         );
 
@@ -74,6 +74,35 @@ where
 
                 states
             })
+        });
+
+        ConcurrentPrepareSet {
+            prepare_fut,
+            configure: self.configure,
+        }
+    }
+
+    pub fn join<P: Prepare<C, Effect = ()>>(
+        self,
+        prepare: P,
+    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>> {
+        debug!(
+            mode = "concurrently",
+            action = "Adding Prepare",
+            prepare = type_name::<P>(),
+        );
+
+        let configure = Arc::clone(&self.configure);
+        let prepare_fut = join(
+            self.prepare_fut,
+            prepare
+                .prepare(configure)
+                .into_future()
+                .map_err(PrepareError::to_prepare_error::<P, _>),
+        )
+        .map(|(l, r)| {
+            r?;
+            l
         });
 
         ConcurrentPrepareSet {
