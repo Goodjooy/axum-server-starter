@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::any::type_name;
-use std::sync::Arc;
+use std::{future::IntoFuture, sync::Arc};
 
 use futures::{
     future::{join, ok, Ready},
@@ -8,9 +8,12 @@ use futures::{
 };
 
 use crate::{
-    debug, fn_prepare, prepared_effect::CombineEffects, EffectsCollector, ExtensionEffect,
-    FnPrepare, GracefulEffect, Prepare, PrepareError, PrepareHandler, PreparedEffect, RouteEffect,
-    ServerEffect,
+    debug,
+    prepare_behave::{
+        effect_traits::{Prepare, PrepareStateEffect},
+        StateCollector,
+    },
+    PrepareError,
 };
 
 /// apply all [Prepare](Prepare) task concurrently
@@ -22,10 +25,9 @@ pub struct ConcurrentPrepareSet<C, PFut> {
     configure: Arc<C>,
 }
 
-impl<C, PFut, E> ConcurrentPrepareSet<C, PFut>
+impl<C, PFut> ConcurrentPrepareSet<C, PFut>
 where
-    PFut: Future<Output = Result<E, PrepareError>>,
-    E: PreparedEffect,
+    PFut: Future<Output = Result<StateCollector, PrepareError>>,
 {
     /// get the [Future] with return [IntoFallibleEffect](crate::IntoFallibleEffect)
     pub fn to_prepared_effect(self) -> PFut {
@@ -33,23 +35,23 @@ where
     }
 }
 
-impl<C, PFut, R, S, G, E> ConcurrentPrepareSet<C, PFut>
+impl<C, PFut> ConcurrentPrepareSet<C, PFut>
 where
-    PFut: Future<Output = Result<EffectsCollector<R, G, E, S>, PrepareError>>,
-    R: RouteEffect,
-    G: GracefulEffect,
-    S: ServerEffect,
-    E: ExtensionEffect,
+    PFut: Future<Output = Result<StateCollector, PrepareError>>,
+
     C: 'static,
 {
     /// join a [Prepare] into concurrent execute set
-    pub fn join<P: Prepare<C>>(
+    ///
+    /// concurrent only support state prepare
+    pub fn join_state<P>(
         self,
         prepare: P,
-    ) -> ConcurrentPrepareSet<
-        C,
-        impl Future<Output = Result<CombineEffects<R, G, E, S, P::Effect>, PrepareError>>,
-    > {
+    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>>
+    where
+        P: Prepare<C>,
+        P::Effect: PrepareStateEffect,
+    {
         debug!(
             mode = "concurrently",
             action = "Adding Prepare",
@@ -61,40 +63,30 @@ where
             self.prepare_fut,
             prepare
                 .prepare(configure)
+                .into_future()
                 .map_err(PrepareError::to_prepare_error::<P, _>),
         )
-        .map(|(l, r)| Ok(l?.with_effect(r?)));
+        .map(|(l, r)| {
+            Ok({
+                let mut states = l?;
+                let effect = r?;
+                effect.take_state(&mut states);
+
+                states
+            })
+        });
 
         ConcurrentPrepareSet {
             prepare_fut,
             configure: self.configure,
         }
     }
-
-    /// join a function-style [Prepare] into concurrent execute set
-    pub fn join_fn<F, Args>(
-        self,
-        func: F,
-    ) -> ConcurrentPrepareSet<
-        C,
-        impl Future<
-            Output = Result<
-                CombineEffects<R, G, E, S, <FnPrepare<C, Args, F> as Prepare<C>>::Effect>,
-                PrepareError,
-            >,
-        >,
-    >
-    where
-        F: PrepareHandler<Args, C>,
-    {
-        self.join(fn_prepare(func))
-    }
 }
 
-impl<C: 'static> ConcurrentPrepareSet<C, Ready<Result<EffectsCollector, PrepareError>>> {
+impl<C: 'static> ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareError>>> {
     pub(crate) fn new(configure: Arc<C>) -> Self {
         Self {
-            prepare_fut: ok(EffectsCollector::new()),
+            prepare_fut: ok(StateCollector::new()),
             configure,
         }
     }
