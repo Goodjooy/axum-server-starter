@@ -1,7 +1,7 @@
 use futures::Future;
 use tower::layer::util::Stack;
 
-use crate::{debug, prepare_behave::EffectContainer, PrepareError, ServerPrepare};
+use crate::{prepare_behave::EffectContainer, PrepareError, ServerPrepare};
 
 impl<C: 'static, FutEffect, Log, State, Graceful>
     ServerPrepare<C, FutEffect, Log, State, Graceful>

@@ -2,7 +2,6 @@ use futures::{future::Ready, Future};
 use tower::layer::util::Stack;
 
 use crate::{
-    debug,
     prepare_behave::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,

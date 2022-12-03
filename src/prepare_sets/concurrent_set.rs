@@ -8,7 +8,6 @@ use futures::{
 };
 
 use crate::{
-    debug,
     prepare_behave::{
         effect_traits::{Prepare, PrepareStateEffect},
         StateCollector,

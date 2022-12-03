@@ -1,7 +1,5 @@
 use futures::Future;
 
-use crate::info;
-
 /// all prepare task are done , the server is ready for launch
 pub enum ServerReady<G, S> {
     Server(S),

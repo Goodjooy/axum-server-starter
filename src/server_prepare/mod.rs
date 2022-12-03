@@ -20,7 +20,6 @@ use tap::Pipe;
 use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
 
 use crate::{
-    debug, info,
     prepare_behave::{effect_traits::PrepareRouteEffect, EffectContainer, FromStateCollector},
     server_ready::ServerReady,
     SerialPrepareSet,

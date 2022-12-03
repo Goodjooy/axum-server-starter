@@ -10,7 +10,6 @@ use http_body::Body;
 use tower::layer::util::{Identity, Stack};
 
 use crate::{
-    debug,
     prepare_behave::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,

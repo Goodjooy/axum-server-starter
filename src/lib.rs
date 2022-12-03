@@ -1,17 +1,15 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../Readme.md")]
+#[macro_use]
+mod log_macro;
+
 mod config_provide;
 mod effect_utils;
 mod fake_span;
-#[macro_use]
-mod log_macro;
 mod prepare_behave;
 mod prepare_sets;
 mod server_prepare;
 mod server_ready;
-
-pub(crate) use info;
-pub(crate) use debug;
 
 pub use prepare_behave::effect_collectors::state_collector::{
     FromStateCollector, StateCollector, TypeNotInState,
