@@ -7,21 +7,23 @@ use std::{
 };
 
 use axum::{
-    extract::{OriginalUri, Path},
+    extract::{FromRef, OriginalUri, Path, State},
     routing::get,
     Router,
 };
 
 use axum_starter::{
     prepare,
-    PrepareRouteEffect,
     router::{Fallback, Nest, Route},
-    Configure, Provider, ServerPrepare,
+    Configure, FromStateCollector, PrepareMiddlewareEffect, PrepareRouteEffect, Provider,
+    ServerPrepare,
 };
 use futures::FutureExt;
+use hyper::Body;
+use tokio::sync::{mpsc, watch};
 
 use std::slice::Iter;
-use tower_http::trace::TraceLayer;
+use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
 #[conf(
@@ -97,6 +99,22 @@ where
         get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
     )
 }
+
+#[prepare(OnFlyRoute)]
+fn route<S, B>() -> impl PrepareRouteEffect<S, B>
+where
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+    watch::Receiver<usize>: FromRef<S>,
+{
+    Route::new(
+        "/on-fly",
+        get(|State(receive): State<watch::Receiver<usize>>| async move {
+            format!("on fly request : {}", *receive.borrow())
+        }),
+    )
+}
+
 #[prepare(box C)]
 fn routers<S, B>() -> impl PrepareRouteEffect<S, B>
 where
@@ -115,6 +133,53 @@ where
     )
 }
 
+pub struct InFlight {
+    layer: tower_http::metrics::InFlightRequestsLayer,
+    counter: watch::Receiver<usize>,
+}
+
+impl<S> PrepareMiddlewareEffect<S> for InFlight {
+    type Middleware = InFlightRequestsLayer;
+
+    fn take(self, states: &mut axum_starter::StateCollector) -> Self::Middleware {
+        states.insert(self.counter);
+        self.layer
+    }
+}
+
+#[prepare(OnFlyMiddleware)]
+fn on_fly_state() -> InFlight {
+    let (layer, counter) = tower_http::metrics::InFlightRequestsLayer::pair();
+    let (sender, mut receive) = mpsc::channel(1);
+    let (sender2, recv2) = watch::channel(0);
+
+    tokio::spawn(async move {
+        loop {
+            let Some(data) = receive.recv().await else{break;};
+
+            sender2.send(data).ok();
+        }
+    });
+
+    tokio::spawn(async move {
+        let sender = sender;
+        counter
+            .run_emitter(Duration::from_millis(500), move |count| {
+                let sender = sender.clone();
+                async move {
+                    sender.send(count).await.ok();
+                    ()
+                }
+            })
+            .await
+    });
+
+    InFlight {
+        layer,
+        counter: recv2,
+    }
+}
+
 #[prepare(box Show)]
 async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
@@ -129,7 +194,7 @@ async fn start() {
     ServerPrepare::with_config(Configure::new())
         .init_logger()
         .expect("Init Logger Failure")
-        .convert_state::<()>()
+        .convert_state::<MyState>()
         .prepare(ShowValue::<_, 11>)
         .prepare_route(C)
         .graceful_shutdown(
@@ -139,6 +204,8 @@ async fn start() {
         )
         .prepare_concurrent(|set| set.join(ShowFoo::<_, String>).join(Show).join(Sleeping))
         .prepare_route(EchoRouter)
+        .prepare_route(OnFlyRoute)
+        .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
         .prepare_start()
         .await
@@ -146,4 +213,25 @@ async fn start() {
         .launch()
         .await
         .expect("Server Error")
+}
+
+#[derive(Debug, Clone)]
+struct MyState {
+    on_fly: watch::Receiver<usize>,
+}
+
+impl FromRef<MyState> for watch::Receiver<usize> {
+    fn from_ref(input: &MyState) -> Self {
+        input.on_fly.clone()
+    }
+}
+
+impl FromStateCollector for MyState {
+    fn fetch_mut(
+        collector: &mut axum_starter::StateCollector,
+    ) -> Result<Self, axum_starter::TypeNotInState> {
+        Ok(Self {
+            on_fly: collector.take()?,
+        })
+    }
 }
