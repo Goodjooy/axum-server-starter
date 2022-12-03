@@ -1,5 +1,5 @@
 use axum::{extract::Path, routing::get};
-use axum_starter::{prepare, router::Route, PreparedEffect, ServerPrepare};
+use axum_starter::{prepare, router::Route, ServerPrepare};
 use config::Conf;
 use tower_http::trace::TraceLayer;
 
@@ -12,8 +12,9 @@ async fn start() {
     ServerPrepare::with_config(Conf::default())
         .init_logger()
         .expect("Init Logger Error")
-        .append(GreetRoute)
-        .with_global_middleware(TraceLayer::new_for_http())
+        .prepare_route(GreetRoute)
+        .layer(TraceLayer::new_for_http())
+        .convert_state::<()>()
         .prepare_start()
         .await
         .expect("Prepare for Start Error")
@@ -53,6 +54,10 @@ async fn greet(Path(name): Path<String>) -> String {
 }
 
 #[prepare(GreetRoute)]
-fn greet_route() -> impl PreparedEffect {
+fn greet_route<S, B>() -> Route<S, B>
+where
+    B: http_body::Body + Send + 'static,
+    S: Clone + Send + Sync + 'static,
+{
     Route::new("/greet/:name", get(greet))
 }
