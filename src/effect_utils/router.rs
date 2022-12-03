@@ -1,42 +1,32 @@
-use std::convert::Infallible;
+use std::marker::PhantomData;
 
-use axum::response::Response;
-use hyper::{Body, Request};
-use tower::Service;
+use axum::{handler::Handler, routing::MethodRouter, Router};
 
-use crate::{EffectsCollector, RouteEffect};
+use crate::prepare_behave::effect_traits::PrepareRouteEffect;
 
 /// [PreparedEffect](crate::PreparedEffect) add route
 ///
 /// ## Note
 /// calling [Router::route](axum::Router::route)
-pub struct Route<R>(&'static str, R);
+pub struct Route<S, B>(&'static str, MethodRouter<S, B>);
 
-impl<R> Route<R> {
-    pub fn new(router: &'static str, service: R) -> EffectsCollector<((), Route<R>)>
+impl<S, B> Route<S, B> {
+    pub fn new(router: &'static str, service: MethodRouter<S, B>) -> Self
     where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
-    {
-        EffectsCollector::new().with_route(Self::new_raw(router, service))
-    }
-
-    pub fn new_raw(router: &'static str, service: R) -> Self
-    where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
+        S: Clone + Send + Sync + 'static,
+        B: http_body::Body + Send + 'static,
     {
         Self(router, service)
     }
 }
 
-impl<R> RouteEffect for Route<R>
+impl<S, B> PrepareRouteEffect<S, B> for Route<S, B>
 where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
 {
-    fn add_router(self, router: axum::Router) -> axum::Router {
-        router.route(self.0, self.1)
+    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
+        route.route(self.0, self.1)
     }
 }
 
@@ -47,25 +37,22 @@ where
 pub struct Merge<R>(R);
 
 impl<R> Merge<R> {
-    pub fn new(merge: R) -> EffectsCollector<((), Merge<R>)>
-    where
-        axum::Router: From<R>,
-    {
-        EffectsCollector::new().with_route(Self::new_raw(merge))
-    }
-    pub fn new_raw(merge: R) -> Self
+    pub fn new(merge: R) -> Self
     where
         axum::Router: From<R>,
     {
         Self(merge)
     }
 }
-impl<R> RouteEffect for Merge<R>
+impl<S, B, R> PrepareRouteEffect<S, B> for Merge<R>
 where
-    axum::Router: From<R>,
+    R: 'static,
+    axum::Router<S, B>: From<R>,
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
 {
-    fn add_router(self, router: axum::Router) -> axum::Router {
-        router.merge(self.0)
+    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
+        route.merge(self.0)
     }
 }
 
@@ -73,35 +60,28 @@ where
 ///
 /// ## Note
 /// calling [Router::nest](axum::Router::nest)
-pub struct Nest<R> {
+pub struct Nest<S, B> {
     path: &'static str,
-    router: R,
+    router: Router<S, B>,
 }
 
-impl<R> Nest<R> {
-    pub fn new(path: &'static str, router: R) -> EffectsCollector<((), Nest<R>)>
+impl<S, B> Nest<S, B> {
+    pub fn new(path: &'static str, router: Router<S, B>) -> Self
     where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
-    {
-        EffectsCollector::new().with_route(Self::new_raw(path, router))
-    }
-    pub fn new_raw(path: &'static str, router: R) -> Self
-    where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
+        S: Clone + Send + Sync + 'static,
+        B: http_body::Body + Send + 'static,
     {
         Self { path, router }
     }
 }
 
-impl<R> RouteEffect for Nest<R>
+impl<S, B> PrepareRouteEffect<S, B> for Nest<S, B>
 where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
 {
-    fn add_router(self, router: axum::Router) -> axum::Router {
-        router.nest(self.path, self.router)
+    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
+        route.nest(self.path, self.router)
     }
 }
 
@@ -109,32 +89,31 @@ where
 ///
 /// ## Note
 /// calling [Router::fallback](axum::Router::fallback)
-pub struct Fallback<R> {
-    service: R,
+pub struct Fallback<H, T> {
+    handle: H,
+    __phantom: PhantomData<T>,
 }
 
-impl<R> Fallback<R> {
-    pub fn new(service: R) -> EffectsCollector<((), Fallback<R>)>
+impl<R, T> Fallback<R, T> {
+    pub fn new<S, B>(handle: R) -> Self
     where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
+        R: Handler<T, S, B>,
+        T: 'static,
     {
-        EffectsCollector::new().with_route(Self::new_raw(service))
-    }
-    pub fn new_raw(service: R) -> Self
-    where
-        R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        R::Future: Send + 'static,
-    {
-        Self { service }
+        Self {
+            handle,
+            __phantom: PhantomData,
+        }
     }
 }
-impl<R> RouteEffect for Fallback<R>
+impl<S, B, R, T> PrepareRouteEffect<S, B> for Fallback<R, T>
 where
-    R: Service<Request<Body>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-    R::Future: Send + 'static,
+    R: Handler<T, S, B>,
+    T: 'static,
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
 {
-    fn add_router(self, router: axum::Router) -> axum::Router {
-        router.fallback(self.service)
+    fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
+        route.fallback(self.handle)
     }
 }
