@@ -1,4 +1,8 @@
+mod adding_middleware;
+mod adding_prepare;
 mod error;
+mod graceful_shutdown;
+mod state_ready;
 #[allow(unused_imports)]
 use std::any::type_name;
 use std::{
@@ -13,78 +17,88 @@ use futures::{future::Ready, Future};
 
 use hyper::{server, Body, Request, Response};
 use tap::Pipe;
-use tower::{
-    layer::util::{Identity, Stack},
-    Layer, Service, ServiceBuilder,
-};
+use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
 
 use crate::{
-    debug, fn_prepare, info, server_ready::ServerReady, ConcurrentPrepareSet, EffectsCollector,
-    PrepareHandler, SerialPrepareSet,
+    debug, info,
+    prepare_behave::{effect_traits::PrepareRouteEffect, EffectContainer, FromStateCollector},
+    server_ready::ServerReady,
+    SerialPrepareSet,
 };
 
 pub use self::{
     configure::{ConfigureServerEffect, LoggerInitialization, ServeAddress},
     error::PrepareError,
-    prepare::{
-        ExtensionEffect, ExtensionManage, GracefulEffect, Prepare, PreparedEffect, RouteEffect,
-        ServerEffect,
-    },
+};
+use self::{
+    error::PrepareStartError,
+    graceful_shutdown::{FetchGraceful, NoGraceful},
+    state_ready::{StateNotReady, StateReady},
 };
 mod configure;
-mod prepare;
 
 pub struct NoLog;
 pub struct LogInit;
 
 /// type for prepare starting
-pub struct ServerPrepare<C, L, FutEffect, Log = LogInit> {
+pub struct ServerPrepare<C, FutEffect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful>
+{
     prepares: SerialPrepareSet<C, FutEffect>,
-    middleware: ServiceBuilder<L>,
+    graceful: Graceful,
     #[cfg(feature = "logger")]
     span: tracing::Span,
     #[cfg(not(feature = "logger"))]
     span: crate::fake_span::FakeSpan,
-    _phantom: PhantomData<Log>,
+    _phantom: PhantomData<(Log, State)>,
 }
 
-impl<C, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
+impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
+    
+}
+
+impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
     fn new(
         prepares: SerialPrepareSet<C, FutEffect>,
-        middleware: ServiceBuilder<L>,
+        graceful: Graceful,
         #[cfg(feature = "logger")] span: tracing::Span,
         #[cfg(not(feature = "logger"))] span: crate::fake_span::FakeSpan,
     ) -> Self {
         Self {
             prepares,
-            middleware,
             _phantom: PhantomData,
             span,
+            graceful,
         }
     }
 }
 
-impl<C, L, FutEffect> ServerPrepare<C, L, FutEffect, NoLog>
+impl<C, FutEffect, State, Graceful> ServerPrepare<C, FutEffect, NoLog, State, Graceful>
 where
     C: LoggerInitialization,
 {
     /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
-    pub fn init_logger(self) -> Result<ServerPrepare<C, L, FutEffect, LogInit>, C::Error> {
+    pub fn init_logger(
+        self,
+    ) -> Result<ServerPrepare<C, FutEffect, LogInit, State, Graceful>, C::Error> {
         self.span.in_scope(|| {
             let t = self.prepares.get_ref_configure().init_logger();
             info!(logger = "Init");
             t
         })?;
 
-        Ok(ServerPrepare::new(
-            self.prepares,
-            self.middleware,
-            self.span,
-        ))
+        Ok(ServerPrepare::new(self.prepares, self.graceful, self.span))
     }
 }
 
-impl<C: 'static> ServerPrepare<C, Identity, Ready<Result<EffectsCollector, PrepareError>>, NoLog> {
+impl<C: 'static>
+    ServerPrepare<
+        C,
+        Ready<Result<EffectContainer<(), Identity>, PrepareError>>,
+        NoLog,
+        StateNotReady,
+        NoGraceful,
+    >
+{
     pub fn with_config(config: C) -> Self
     where
         C: ServeAddress,
@@ -93,189 +107,68 @@ impl<C: 'static> ServerPrepare<C, Identity, Ready<Result<EffectsCollector, Prepa
         let span = tracing::debug_span!("prepare server start");
         #[cfg(not(feature = "logger"))]
         let span = crate::fake_span::FakeSpan;
-        ServerPrepare::new(
-            SerialPrepareSet::new(Arc::new(config)),
-            ServiceBuilder::new(),
-            span,
-        )
+        ServerPrepare::new(SerialPrepareSet::new(Arc::new(config)), NoGraceful, span)
     }
 }
-
-impl<C: 'static, L, FutEffect, Log> ServerPrepare<C, L, FutEffect, Log> {
-    /// adding a set of [Prepare] executing concurrently
-    ///
-    /// # Note
-    ///
-    /// [Prepare] set added by different [Self::append_concurrent] will be execute serially
-    pub fn append_concurrent<F, Fut, R, G, E, S, Fr, Fg, Fe, Fs>(
-        self,
-        concurrent: F,
-    ) -> ServerPrepare<
-        C,
-        L,
-        impl Future<
-            Output = Result<
-                EffectsCollector<
-                    impl RouteEffect,
-                    impl GracefulEffect,
-                    impl ExtensionEffect,
-                    impl ServerEffect,
-                >,
-                PrepareError,
-            >,
-        >,
-        Log,
-    >
-    where
-        F: FnOnce(
-                ConcurrentPrepareSet<C, Ready<Result<EffectsCollector, PrepareError>>>,
-            ) -> ConcurrentPrepareSet<C, Fut>
-            + 'static,
-        Fut: Future<Output = Result<EffectsCollector<R, G, E, S>, PrepareError>>,
-        FutEffect: Future<Output = Result<EffectsCollector<Fr, Fg, Fe, Fs>, PrepareError>>,
-        Fr: RouteEffect,
-        Fg: GracefulEffect,
-        Fe: ExtensionEffect,
-        Fs: ServerEffect,
-        R: RouteEffect,
-        G: GracefulEffect,
-        E: ExtensionEffect,
-        S: ServerEffect,
-    {
-        let prepares = self.span.in_scope(|| {
-            debug!(mode = "Concurrent", action = "Add Prepare");
-            let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
-            self.prepares
-                .then_fut_effect(concurrent(concurrent_set).to_prepared_effect())
-        });
-        ServerPrepare::new(prepares, self.middleware, self.span)
-    }
-
-    /// adding a [Prepare]
-    ///
-    /// ## Note
-    ///
-    /// the [Prepare] task will be execute one by one.
-    ///
-    /// **DO NOT** block any task for a long time, neither **sync** nor **async**
-    pub fn append<P, R, S, G, E>(
-        self,
-        prepare: P,
-    ) -> ServerPrepare<
-        C,
-        L,
-        impl Future<
-            Output = Result<
-                EffectsCollector<
-                    impl RouteEffect,
-                    impl GracefulEffect,
-                    impl ExtensionEffect,
-                    impl ServerEffect,
-                >,
-                PrepareError,
-            >,
-        >,
-    >
-    where
-        FutEffect: Future<Output = Result<EffectsCollector<R, G, E, S>, PrepareError>>,
-        R: RouteEffect,
-        S: ServerEffect,
-        G: GracefulEffect,
-        E: ExtensionEffect,
-        P: Prepare<C>,
-    {
-        let prepares = self.span.in_scope(|| {
-            debug!(
-                mode = "Serial",
-                action = "Add Prepare",
-                prepare = type_name::<P>()
-            );
-            self.prepares.then(prepare)
-        });
-
-        ServerPrepare::new(prepares, self.middleware, self.span)
-    }
-    /// adding a function-style [Prepare]
-    pub fn append_fn<F, Args, R, S, G, E>(
-        self,
-        func: F,
-    ) -> ServerPrepare<
-        C,
-        L,
-        impl Future<
-            Output = Result<
-                EffectsCollector<
-                    impl RouteEffect,
-                    impl GracefulEffect,
-                    impl ExtensionEffect,
-                    impl ServerEffect,
-                >,
-                PrepareError,
-            >,
-        >,
-    >
-    where
-        FutEffect: Future<Output = Result<EffectsCollector<R, G, E, S>, PrepareError>>,
-        R: RouteEffect,
-        S: ServerEffect,
-        G: GracefulEffect,
-        E: ExtensionEffect,
-        F: PrepareHandler<Args, C>,
-    {
-        self.append(fn_prepare(func))
-    }
-    /// adding global middleware
-    ///
-    /// ## note
-    /// before call [Self::prepare_start] make sure the [Service::Response] is meet the
-    /// axum requirement
-    pub fn with_global_middleware<M>(self, layer: M) -> ServerPrepare<C, Stack<M, L>, FutEffect> {
-        self.span.in_scope(|| {
-            debug!(middleware.layer = type_name::<M>());
-        });
-        ServerPrepare::new(self.prepares, self.middleware.layer(layer), self.span)
-    }
+impl<C: 'static, FutEffect, Log, State, Graceful>
+    ServerPrepare<C, FutEffect, Log, StateReady<State>, Graceful>
+{
     /// prepare to start this server
     ///
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
-    pub async fn prepare_start<Effect, NewResBody>(
+    pub async fn prepare_start<R, LayerInner, NewResBody>(
         self,
-    ) -> Result<ServerReady<impl Future<Output = Result<(), hyper::Error>>>, PrepareError>
+    ) -> Result<
+        ServerReady<
+            impl Future<Output = Result<(), hyper::Error>>,
+            impl Future<Output = Result<(), hyper::Error>>,
+        >,
+        PrepareStartError,
+    >
     where
+        // config
         C: ServeAddress + ConfigureServerEffect,
-        ServiceBuilder<L>: Layer<Route>,
-        <ServiceBuilder<L> as Layer<Route>>::Service: Send
+        // middleware
+        LayerInner: Send + 'static,
+        ServiceBuilder<LayerInner>: Layer<Route> + Clone,
+        <ServiceBuilder<LayerInner> as Layer<Route>>::Service: Send
             + Clone
             + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
             + 'static,
-        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+        <<ServiceBuilder<LayerInner> as Layer<Route>>::Service as Service<Request<Body>>>::Future:
+            Send,
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
-        FutEffect: Future<Output = Result<Effect, PrepareError>>,
-        Effect: PreparedEffect,
+        // prepare task
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        R: PrepareRouteEffect<State, Body>,
+        // state
+        State: FromStateCollector,
+        State: Clone + Send + 'static + Sync,
+        // graceful
+        Graceful: FetchGraceful,
     {
         async {
             let (prepare_fut, configure) = self.prepares.unwrap();
             debug!(execute = "Prepare");
-            let (extension_effect, route_effect, graceful_effect, server_effect) =
-                prepare_fut.await?.split_effect();
+
+            let (state, middleware, route) = prepare_fut.await?.unwrap();
+
+            let state = State::fetch(state)?;
 
             debug!(effect = "Router");
             let router = Router::new()
                 // apply prepare effect on router
-                .pipe(|router| route_effect.add_router(router))
-                // apply prepare extension
-                .pipe(|router| extension_effect.apply_extension(router))
+                .pipe(|router| route.set_route(router))
                 // adding middleware
-                .pipe(|router| router.layer(self.middleware));
+                .pipe(|router| router.layer(middleware))
+                .with_state(state);
 
             debug!(effect = "Graceful Shutdown");
-            let graceful = graceful_effect.set_graceful();
+            let graceful = self.graceful.get_graceful();
 
             debug!(effect = "Server");
             let server = server::Server::bind(&ServeAddress::get_address(&*configure).into())
-                // apply effect config server
-                .pipe(|server| server_effect.config_serve(server))
                 // apply configure config server
                 .pipe(|server| configure.effect_server(server))
                 .serve(router.into_make_service());

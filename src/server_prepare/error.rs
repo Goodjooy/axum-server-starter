@@ -1,5 +1,7 @@
 use std::{any::type_name, error};
 
+use crate::prepare_behave::effect_collectors::state_collector::TypeNotInState;
+
 #[derive(Debug, thiserror::Error)]
 /// the error while prepare for each [Prepare](crate::Prepare) task
 #[error("prepare error on {ty} : {source}")]
@@ -19,4 +21,12 @@ impl PrepareError {
     pub fn to_prepare_error<P, E: std::error::Error + 'static>(err: E) -> PrepareError {
         PrepareError::new(type_name::<P>(), Box::new(err))
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PrepareStartError {
+    #[error(transparent)]
+    Prepare(#[from]PrepareError),
+    #[error(transparent)]
+    State(#[from]TypeNotInState),
 }
