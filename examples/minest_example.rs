@@ -14,7 +14,7 @@ async fn start() {
         .expect("Init Logger Error")
         .prepare_route(GreetRoute)
         .layer(TraceLayer::new_for_http())
-        .convert_state::<()>()
+        .no_state()
         .prepare_start()
         .await
         .expect("Prepare for Start Error")

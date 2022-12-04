@@ -23,7 +23,7 @@ It can do
 
 ```rust
 use axum::{extract::Path, routing::get};
-use axum_starter::{prepare, router::Route, PrepareRouteEffect, ServerPrepare};
+use axum_starter::{prepare, router::Route, ServerPrepare};
 use config::Conf;
 use tower_http::trace::TraceLayer;
 
@@ -36,8 +36,9 @@ async fn start() {
     ServerPrepare::with_config(Conf::default())
         .init_logger()
         .expect("Init Logger Error")
-        .append(GreetRoute)
-        .with_global_middleware(TraceLayer::new_for_http())
+        .prepare_route(GreetRoute)
+        .layer(TraceLayer::new_for_http())
+        .no_state()
         .prepare_start()
         .await
         .expect("Prepare for Start Error")
@@ -77,10 +78,10 @@ async fn greet(Path(name): Path<String>) -> String {
 }
 
 #[prepare(GreetRoute)]
-fn greet_route<S, B>() -> impl PrepareRouteEffect<S, B> 
+fn greet_route<S, B>() -> Route<S, B>
 where
-    S: Clone + Send + Sync + 'static,
     B: http_body::Body + Send + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     Route::new("/greet/:name", get(greet))
 }
@@ -114,4 +115,3 @@ if you want run some `Prepare`s _concurrently_, you can call `ServerPrepare::app
 if you want to adding a middleware on the root of server `Router`, using [`ServerPrepare::layer`](crate::ServerPrepare::layer) then giving the `Layer`
 
 or using [`PrepareMiddlewareEffect`](crate::PrepareMiddlewareEffect) apply middleware in [`Prepare`](crate::Prepare)
-

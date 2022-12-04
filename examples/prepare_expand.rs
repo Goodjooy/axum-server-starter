@@ -25,7 +25,7 @@ async fn main() {
         id: 11,
         name: "Str".to_string(),
     })
-    .prepare_route(Student)
+    .prepare(Student)
     .prepare_state(EchoState)
     .prepare_route(Echo)
     .graceful_shutdown(ctrl_c().map(|_| ()))
