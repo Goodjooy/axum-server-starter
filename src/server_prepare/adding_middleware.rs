@@ -6,7 +6,6 @@ use crate::{prepare_behave::EffectContainer, PrepareError, ServerPrepare};
 impl<C: 'static, FutEffect, Log, State, Graceful>
     ServerPrepare<C, FutEffect, Log, State, Graceful>
 {
-
     /// adding middleware without previously [Prepare](crate::Prepare) action
     pub fn layer<R, LayerInner, M>(
         self,

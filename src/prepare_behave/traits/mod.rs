@@ -17,8 +17,8 @@ pub trait Prepare<C: 'static> {
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
-/// Fallible Prepare 
-/// 
+/// Fallible Prepare
+///
 /// convenient trait for Macro code generate
 pub trait FalliblePrepare {
     /// the effect of prepare

@@ -21,14 +21,14 @@ impl StateCollector {
     }
 
     /// insert a new type into state collect
-    /// 
+    ///
     /// if the type previously exist, the new value will overwrite the old one
     pub fn insert<T: 'static + Any>(&mut self, data: T) {
         self.0.insert(data.type_id(), Box::new(data));
     }
 
     /// take a type from the collector
-    /// 
+    ///
     /// if the Value Not exist in collector, it will return [TypeNotInState] Error
     pub fn take<T: 'static + Any>(&mut self) -> Result<T, TypeNotInState> {
         self.0

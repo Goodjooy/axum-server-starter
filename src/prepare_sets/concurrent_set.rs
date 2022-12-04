@@ -29,7 +29,7 @@ where
     PFut: Future<Output = Result<StateCollector, PrepareError>>,
 {
     /// get the [Future]
-    pub(crate) fn to_prepared_effect(self) -> PFut {
+    pub(crate) fn into_internal_future(self) -> PFut {
         self.prepare_fut
     }
 }

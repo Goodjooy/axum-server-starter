@@ -40,7 +40,6 @@ impl<C, PFut, R, L> SerialPrepareSet<C, PFut>
 where
     PFut: Future<Output = Result<EffectContainer<R, L>, PrepareError>>,
 {
-
     pub(crate) fn unwrap(self) -> (PFut, Arc<C>) {
         (self.prepare_fut, self.configure)
     }
@@ -52,7 +51,7 @@ where
     C: 'static,
 {
     /// add a [Prepare] into serially executing set
-    /// 
+    ///
     /// with the [PrepareRouteEffect]
     pub(crate) fn then_route<P, S, B>(
         self,
@@ -87,8 +86,8 @@ where
         }
     }
 
-        /// add a [Prepare] into serially executing set
-    /// 
+    /// add a [Prepare] into serially executing set
+    ///
     /// with the [PrepareStateEffect]
     pub(crate) fn then_state<P>(
         self,
@@ -116,7 +115,7 @@ where
         }
     }
     /// add a [Prepare] into serially executing set
-    /// 
+    ///
     /// with the [PrepareMiddlewareEffect]
     pub(crate) fn then_middleware<P, S>(
         self,
@@ -152,7 +151,7 @@ where
         }
     }
     /// add a [Prepare] into serially executing set
-    /// 
+    ///
     /// without Effect
     pub(crate) fn then<P>(
         self,
@@ -205,7 +204,7 @@ where
     where
         ConcurrentFut: Future<Output = Result<StateCollector, PrepareError>>,
     {
-        let fut = concurrent.to_prepared_effect();
+        let fut = concurrent.into_internal_future();
 
         let prepare_fut = self
             .prepare_fut
