@@ -14,6 +14,7 @@ use super::{
     },
 };
 
+/// container store the [Prepare] Effects
 pub struct EffectContainer<R, L> {
     states: StateCollector,
     middleware: ServiceBuilder<L>,
@@ -21,7 +22,7 @@ pub struct EffectContainer<R, L> {
 }
 
 impl<R, L> EffectContainer<R, L> {
-    pub fn unwrap(self) -> (StateCollector, ServiceBuilder<L>, R) {
+    pub(crate) fn unwrap(self) -> (StateCollector, ServiceBuilder<L>, R) {
         (self.states, self.middleware, self.route)
     }
 }
@@ -44,7 +45,7 @@ impl EffectContainer<(), Identity> {
 }
 
 impl<R, L> EffectContainer<R, L> {
-    pub fn set_middleware<Service, E: PrepareMiddlewareEffect<Service>>(
+    pub(crate) fn set_middleware<Service, E: PrepareMiddlewareEffect<Service>>(
         self,
         effect: E,
     ) -> EffectContainer<R, Stack<E::Middleware, L>> {
@@ -79,7 +80,7 @@ impl<R, L> EffectContainer<R, L> {
         }
     }
 
-    pub fn set_state<E>(mut self, effect: E) -> EffectContainer<R, L>
+    pub(crate) fn set_state<E>(mut self, effect: E) -> EffectContainer<R, L>
     where
         E: PrepareStateEffect,
     {
@@ -87,7 +88,7 @@ impl<R, L> EffectContainer<R, L> {
         self
     }
 
-    pub fn set_route<S, B, E>(self, effect: E) -> EffectContainer<(E, R), L>
+    pub(crate) fn set_route<S, B, E>(self, effect: E) -> EffectContainer<(E, R), L>
     where
         B: Body + Send + 'static,
         E: PrepareRouteEffect<S, B>,

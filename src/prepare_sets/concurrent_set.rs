@@ -29,7 +29,7 @@ where
     PFut: Future<Output = Result<StateCollector, PrepareError>>,
 {
     /// get the [Future]
-    pub fn to_prepared_effect(self) -> PFut {
+    pub(crate) fn to_prepared_effect(self) -> PFut {
         self.prepare_fut
     }
 }
@@ -81,6 +81,7 @@ where
         }
     }
 
+    /// join a [Prepare] without effect
     pub fn join<P: Prepare<C, Effect = ()>>(
         self,
         prepare: P,

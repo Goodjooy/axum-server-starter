@@ -27,10 +27,9 @@ use crate::{
 
 pub use self::{
     configure::{ConfigureServerEffect, LoggerInitialization, ServeAddress},
-    error::PrepareError,
+    error::{PrepareError, PrepareStartError},
 };
 use self::{
-    error::PrepareStartError,
     graceful_shutdown::{FetchGraceful, NoGraceful},
     state_ready::{StateNotReady, StateReady},
 };
@@ -50,8 +49,6 @@ pub struct ServerPrepare<C, FutEffect, Log = LogInit, State = StateNotReady, Gra
     span: crate::fake_span::FakeSpan,
     _phantom: PhantomData<(Log, State)>,
 }
-
-impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {}
 
 impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
     fn new(
@@ -96,6 +93,7 @@ impl<C: 'static>
         NoGraceful,
     >
 {
+    /// prepare staring the service with config
     pub fn with_config(config: C) -> Self
     where
         C: ServeAddress,

@@ -4,6 +4,7 @@ use std::{
     ops::BitAnd,
 };
 
+/// collect all state during prepare
 pub struct StateCollector(HashMap<TypeId, Box<dyn Any + 'static>>);
 
 impl BitAnd for StateCollector {
@@ -19,10 +20,16 @@ impl StateCollector {
         Self(HashMap::new())
     }
 
+    /// insert a new type into state collect
+    /// 
+    /// if the type previously exist, the new value will overwrite the old one
     pub fn insert<T: 'static + Any>(&mut self, data: T) {
         self.0.insert(data.type_id(), Box::new(data));
     }
 
+    /// take a type from the collector
+    /// 
+    /// if the Value Not exist in collector, it will return [TypeNotInState] Error
     pub fn take<T: 'static + Any>(&mut self) -> Result<T, TypeNotInState> {
         self.0
             .remove(&TypeId::of::<T>())
@@ -34,11 +41,15 @@ impl StateCollector {
 
 #[derive(Debug, thiserror::Error)]
 #[error("Target Type {0} Not in State")]
+/// then type not in the state collector
 pub struct TypeNotInState(&'static str);
 
+/// Mapping type form [StateCollector] to special Type
 pub trait FromStateCollector: Sized {
+    /// take a part of data
     fn fetch_mut(collector: &mut StateCollector) -> Result<Self, TypeNotInState>;
 
+    /// take data an fetch the ownership
     fn fetch(mut collector: StateCollector) -> Result<Self, TypeNotInState> {
         FromStateCollector::fetch_mut(&mut collector)
     }

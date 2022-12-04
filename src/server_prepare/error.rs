@@ -24,9 +24,12 @@ impl PrepareError {
 }
 
 #[derive(Debug, thiserror::Error)]
+/// error during the [ServerPrepare::prepare_start](super::ServerPrepare::prepare_start)
 pub enum PrepareStartError {
     #[error(transparent)]
+    /// prepare error
     Prepare(#[from] PrepareError),
     #[error(transparent)]
+    /// state convent error
     State(#[from] TypeNotInState),
 }

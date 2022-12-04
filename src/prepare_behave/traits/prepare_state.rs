@@ -16,7 +16,7 @@ macro_rules! state_effect {
                 $id: PrepareStateEffect,
             )*
         {
-            #[allow(non_snake_case,unused_variables)]
+            #[allow(non_snake_case, unused_variables)]
             fn take_state(self, states: &mut StateCollector) {
                 let ($($id,)*) = self;
 

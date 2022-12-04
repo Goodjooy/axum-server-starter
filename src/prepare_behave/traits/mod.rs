@@ -10,21 +10,23 @@ use futures::{future::Map, Future, FutureExt};
 pub trait Prepare<C: 'static> {
     /// the effect
     type Effect: 'static;
-    /// the prepare can fall
+    /// prepare error
     type Error: StdError + 'static;
     /// the future for preparing
     type Future: IntoFuture<Output = Result<Self::Effect, Self::Error>>;
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
-/// the prepare may fall
+/// Fallible Prepare 
+/// 
+/// convenient trait for Macro code generate
 pub trait FalliblePrepare {
     /// the effect of prepare
     type Effect: 'static;
-    /// the error when failure
+    /// prepare error
     type Error: StdError + 'static;
 
-    /// convent the Prepare result to Result
+    /// convent the Fallible [Prepare] result to [Result]
     fn to_result(self) -> Result<Self::Effect, Self::Error>;
 }
 

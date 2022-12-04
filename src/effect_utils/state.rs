@@ -5,6 +5,7 @@ use crate::prepare_behave::{
     StateCollector,
 };
 
+/// [PrepareStateEffect] or [PrepareMiddlewareEffect] adding a new state type
 pub struct AddState<S>(pub S);
 
 impl<State: 'static, Service> PrepareMiddlewareEffect<Service> for AddState<State> {

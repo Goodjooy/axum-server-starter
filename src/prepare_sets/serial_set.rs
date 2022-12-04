@@ -40,10 +40,6 @@ impl<C, PFut, R, L> SerialPrepareSet<C, PFut>
 where
     PFut: Future<Output = Result<EffectContainer<R, L>, PrepareError>>,
 {
-    /// get the [Future]
-    pub fn to_prepared_effect(self) -> PFut {
-        self.prepare_fut
-    }
 
     pub(crate) fn unwrap(self) -> (PFut, Arc<C>) {
         (self.prepare_fut, self.configure)
@@ -56,7 +52,9 @@ where
     C: 'static,
 {
     /// add a [Prepare] into serially executing set
-    pub fn then_route<P, S, B>(
+    /// 
+    /// with the [PrepareRouteEffect]
+    pub(crate) fn then_route<P, S, B>(
         self,
         prepare: P,
     ) -> SerialPrepareSet<
@@ -89,7 +87,10 @@ where
         }
     }
 
-    pub fn then_state<P>(
+        /// add a [Prepare] into serially executing set
+    /// 
+    /// with the [PrepareStateEffect]
+    pub(crate) fn then_state<P>(
         self,
         prepare: P,
     ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
@@ -114,8 +115,10 @@ where
             configure: self.configure,
         }
     }
-
-    pub fn then_middleware<P, S>(
+    /// add a [Prepare] into serially executing set
+    /// 
+    /// with the [PrepareMiddlewareEffect]
+    pub(crate) fn then_middleware<P, S>(
         self,
         prepare: P,
     ) -> SerialPrepareSet<
@@ -148,8 +151,10 @@ where
             configure: self.configure,
         }
     }
-
-    pub fn then<P>(
+    /// add a [Prepare] into serially executing set
+    /// 
+    /// without Effect
+    pub(crate) fn then<P>(
         self,
         prepare: P,
     ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
@@ -178,7 +183,8 @@ where
         }
     }
 
-    pub fn set_middleware<M>(
+    /// just adding a middleware
+    pub(crate) fn set_middleware<M>(
         self,
         layer: M,
     ) -> SerialPrepareSet<
@@ -191,7 +197,8 @@ where
         }
     }
 
-    pub fn combine<ConcurrentFut>(
+    /// combine concurrent set into self
+    pub(crate) fn combine<ConcurrentFut>(
         self,
         concurrent: ConcurrentPrepareSet<C, ConcurrentFut>,
     ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>

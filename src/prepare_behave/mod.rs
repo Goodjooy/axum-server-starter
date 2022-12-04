@@ -10,4 +10,4 @@ pub mod effect_traits {
 }
 
 pub use effect_collectors::state_collector::{FromStateCollector, StateCollector};
-pub use effect_contain::EffectContainer;
+pub(crate) use effect_contain::EffectContainer;
