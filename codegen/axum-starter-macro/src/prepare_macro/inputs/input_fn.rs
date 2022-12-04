@@ -1,6 +1,8 @@
+use std::ops::Deref;
+
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, PatType, PredicateType, Token, TypeParam, WherePredicate,
+    LifetimeDef, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
 };
 
 pub struct InputFn<'r> {
@@ -8,6 +10,7 @@ pub struct InputFn<'r> {
     pub fn_name: &'r syn::Ident,
     pub generic: GenericWithBound<'r>,
     pub args_type: Vec<&'r syn::Type>,
+    pub ret: Option<&'r Type>,
 }
 
 impl<'r> InputFn<'r> {
@@ -42,7 +45,10 @@ impl<'r> InputFn<'r> {
         }
 
         let generic = GenericWithBound::new(&sig.generics, lifetime)?;
-
+        let ret = match sig.output {
+            syn::ReturnType::Default => None,
+            syn::ReturnType::Type(_, ref ty) => Some(ty.deref()),
+        };
         Ok(Self {
             is_async: sig.asyncness.is_some(),
             fn_name: &sig.ident,
@@ -55,6 +61,7 @@ impl<'r> InputFn<'r> {
                 })
                 .collect(),
             generic,
+            ret,
         })
     }
 }

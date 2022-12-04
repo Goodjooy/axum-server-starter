@@ -1,5 +1,5 @@
 #[cfg(not(feature = "logger"))]
-pub struct FakeSpan;
+pub(crate) struct FakeSpan;
 
 #[cfg(not(feature = "logger"))]
 impl FakeSpan {

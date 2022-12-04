@@ -1,26 +1,29 @@
 use std::{
+    convert::Infallible,
     fmt::Debug,
     iter::Cloned,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    time::Duration,
 };
 
 use axum::{
-    extract::{OriginalUri, Path},
-    handler::Handler,
+    extract::{FromRef, OriginalUri, Path, State},
     routing::get,
     Router,
 };
+
 use axum_starter::{
-    graceful::SetGraceful,
     prepare,
     router::{Fallback, Nest, Route},
-    EffectsCollector, PreparedEffect, Provider, ServerPrepare,
+    Configure, PrepareMiddlewareEffect, PrepareRouteEffect, Provider, ServerPrepare,
 };
-use axum_starter_macro::Configure;
+use axum_starter_macro::FromStateCollector;
 use futures::FutureExt;
+use hyper::Body;
+use tokio::sync::{mpsc, watch};
 
 use std::slice::Iter;
-use tower_http::trace::TraceLayer;
+use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
 #[conf(
@@ -60,16 +63,6 @@ impl Configure {
 }
 // prepares
 
-#[prepare(LifetimeBound)]
-fn lifetime_bound<I>(iter: I)
-where
-    I: IntoIterator<Item = i32>,
-{
-    for i in iter {
-        log::info!("Has config iter {:?}", i)
-    }
-}
-
 /// if need ref args ,adding a lifetime
 #[prepare(box ShowFoo 'arg)]
 fn show_foo<S>(f: &'arg S)
@@ -79,6 +72,16 @@ where
     println!("this is Foo {}", f.as_ref())
 }
 
+/// if prepare procedure may occur Error, using `?` after
+/// Prepare task Name
+#[prepare(Sleeping?)]
+async fn sleep() -> Result<(), Infallible> {
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    println!("sleep down 2s");
+    Ok(())
+}
+
+/// prepare support const generic
 #[prepare(ShowValue)]
 fn the_value<const V: i32>() {
     println!("The value is {}", V)
@@ -86,40 +89,100 @@ fn the_value<const V: i32>() {
 
 /// using `#[prepare]`
 #[prepare(EchoRouter)]
-fn echo() -> impl PreparedEffect {
+fn echo<S, B>() -> impl PrepareRouteEffect<S, B>
+where
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+{
     Route::new(
         "/:echo",
         get(|Path(echo): Path<String>| async move { format!("Welcome ! {echo}") }),
     )
 }
+
+#[prepare(OnFlyRoute)]
+fn route<S, B>() -> impl PrepareRouteEffect<S, B>
+where
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+    watch::Receiver<usize>: FromRef<S>,
+{
+    Route::new(
+        "/on-fly",
+        get(|State(receive): State<watch::Receiver<usize>>| async move {
+            format!("on fly request : {}", *receive.borrow())
+        }),
+    )
+}
+
 #[prepare(box C)]
-fn routers() -> impl PreparedEffect {
-    EffectsCollector::new()
-        .with_route(Nest::new(
+fn routers<S, B>() -> impl PrepareRouteEffect<S, B>
+where
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+{
+    (
+        Nest::new(
             "/aac/b",
             Router::new().route(
                 "/a",
                 get(|OriginalUri(uri): OriginalUri| async move { format!("welcome {uri}") }),
             ),
-        ))
-        .with_route(Fallback::new(Handler::into_service(|| async { "oops" })))
-        .with_server(axum_starter::service::ConfigServer::new(|s| {
-            s.http1_only(true)
-        }))
+        ),
+        Fallback::new(|| async { "oops" }),
+    )
+}
+
+pub struct InFlight {
+    layer: tower_http::metrics::InFlightRequestsLayer,
+    counter: watch::Receiver<usize>,
+}
+
+impl<S> PrepareMiddlewareEffect<S> for InFlight {
+    type Middleware = InFlightRequestsLayer;
+
+    fn take(self, states: &mut axum_starter::StateCollector) -> Self::Middleware {
+        states.insert(self.counter);
+        self.layer
+    }
+}
+
+#[prepare(OnFlyMiddleware)]
+fn on_fly_state() -> InFlight {
+    let (layer, counter) = tower_http::metrics::InFlightRequestsLayer::pair();
+    let (sender, mut receive) = mpsc::channel(1);
+    let (sender2, recv2) = watch::channel(0);
+
+    tokio::spawn(async move {
+        loop {
+            let Some(data) = receive.recv().await else{break;};
+
+            sender2.send(data).ok();
+        }
+    });
+
+    tokio::spawn(async move {
+        let sender = sender;
+        counter
+            .run_emitter(Duration::from_millis(500), move |count| {
+                let sender = sender.clone();
+                async move {
+                    sender.send(count).await.ok();
+                    ()
+                }
+            })
+            .await
+    });
+
+    InFlight {
+        layer,
+        counter: recv2,
+    }
 }
 
 #[prepare(box Show)]
 async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
-}
-
-/// function style prepare
-async fn graceful_shutdown() -> impl PreparedEffect {
-    SetGraceful::new(
-        tokio::signal::ctrl_c()
-            .map(|_| println!("recv Exit msg"))
-            .map(|_| ()),
-    )
 }
 
 #[tokio::main]
@@ -131,16 +194,28 @@ async fn start() {
     ServerPrepare::with_config(Configure::new())
         .init_logger()
         .expect("Init Logger Failure")
-        .append(ShowValue::<_, 11>)
-        // .append(LifetimeBound::<_, Cloned<Iter<i32>>>)
-        .append_concurrent(|set| set.join(ShowFoo::<_, String>).join(C).join(Show))
-        .append_fn(graceful_shutdown)
-        .append(EchoRouter)
-        .with_global_middleware(TraceLayer::new_for_http())
+        .convert_state::<MyState>()
+        .prepare(ShowValue::<_, 11>)
+        .prepare_route(C)
+        .graceful_shutdown(
+            tokio::signal::ctrl_c()
+                .map(|_| println!("recv Exit msg"))
+                .map(|_| ()),
+        )
+        .prepare_concurrent(|set| set.join(ShowFoo::<_, String>).join(Show).join(Sleeping))
+        .prepare_route(EchoRouter)
+        .prepare_route(OnFlyRoute)
+        .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
+        .layer(TraceLayer::new_for_http())
         .prepare_start()
         .await
         .expect("Prepare for starting server failure ")
         .launch()
         .await
         .expect("Server Error")
+}
+
+#[derive(Debug, Clone, FromRef, FromStateCollector)]
+struct MyState {
+    on_fly: watch::Receiver<usize>,
 }

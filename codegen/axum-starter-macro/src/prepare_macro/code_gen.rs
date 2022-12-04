@@ -6,6 +6,7 @@ use super::inputs::input_fn::{GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
     call_async: bool,
+    may_fall: bool,
     boxed: bool,
     prepare_name: &'r syn::Ident,
     prepare_generic: GenericWithBound<'r>,
@@ -13,6 +14,7 @@ pub struct CodeGen<'r> {
 
     call_args: Vec<&'r Type>,
     args_lifetime: Option<&'r Lifetime>,
+    ret_type: Option<&'r Type>,
 }
 
 impl<'r> CodeGen<'r> {
@@ -20,11 +22,13 @@ impl<'r> CodeGen<'r> {
         prepare_name: &'r syn::Ident,
         arg_lifetime: &'r Option<Lifetime>,
         boxed: bool,
+        may_fall: bool,
         InputFn {
             is_async,
             fn_name,
             args_type,
             generic,
+            ret,
         }: InputFn<'r>,
     ) -> Self {
         Self {
@@ -35,6 +39,8 @@ impl<'r> CodeGen<'r> {
             args_lifetime: arg_lifetime.as_ref(),
             prepare_generic: generic,
             boxed,
+            may_fall,
+            ret_type: ret,
         }
     }
 }
@@ -49,6 +55,8 @@ impl<'r> ToTokens for CodeGen<'r> {
             args_lifetime,
             prepare_generic,
             boxed,
+            may_fall,
+            ret_type,
         } = self;
 
         let bound_lifetime = match args_lifetime {
@@ -120,27 +128,56 @@ impl<'r> ToTokens for CodeGen<'r> {
                 )#awaiting
         };
 
+        let mapped_func_call = if *may_fall {
+            func_call
+        } else {
+            quote::quote!(
+                ::core::result::Result::Ok(
+                    #func_call
+                )
+            )
+        };
+
         let async_boxed = if *boxed {
             quote::quote! {
                 ::std::boxed::Box::pin(
                     async move {
-                        #func_call
+                        #mapped_func_call
                     }
                 )
             }
         } else {
-            func_call
+            mapped_func_call
         };
+
+        // ret type
+        let ret_type = match ret_type {
+            Some(ty) => quote::quote!(#ty),
+            None => quote::quote!(()),
+        };
+
+        let ret_type = if *may_fall {
+            quote::quote!(
+                ::core::result::Result<
+                    <#ret_type as ::axum_starter::FalliblePrepare>::Effect,
+                    <#ret_type as ::axum_starter::FalliblePrepare>::Error,
+
+                >
+            )
+        } else {
+            quote::quote!(::core::result::Result <#ret_type ,::core::convert::Infallible>)
+        };
+
         let boxed_ret = if *boxed {
             quote::quote!(
                 ::std::pin::Pin<
                     ::std::boxed::Box<
-                        impl ::core::future::Future<Output = impl ::axum_starter::IntoFallibleEffect>,
+                        dyn ::core::future::Future<Output = #ret_type>,
                     >,
                 >
             )
         } else {
-            quote::quote!(impl ::axum_starter::IntoFallibleEffect)
+            quote::quote!(#ret_type)
         };
 
         let boxed_async_signal = if *boxed {
