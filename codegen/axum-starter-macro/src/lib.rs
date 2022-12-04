@@ -1,7 +1,9 @@
 #![forbid(unsafe_code)]
 mod derive_config;
 mod derive_provider;
+mod from_state_collector;
 mod prepare_macro;
+
 use prepare_macro::inputs::attr_name::PrepareName;
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
@@ -81,6 +83,17 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     darling_err!(derive_config::provider_derive(derive_input))
+}
+
+/// impl `FromStateCollector` for special type
+///
+/// this implement is easy but boring, thus need macro to simplify it
+#[proc_macro_derive(FromStateCollector)]
+pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let derive_input = parse_macro_input!(input as DeriveInput);
+    darling_err!(from_state_collector::from_state_collector_macro(
+        derive_input
+    ))
 }
 
 /// make a function can apply as a `Prepare`

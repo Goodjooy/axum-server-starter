@@ -15,9 +15,9 @@ use axum::{
 use axum_starter::{
     prepare,
     router::{Fallback, Nest, Route},
-    Configure, FromStateCollector, PrepareMiddlewareEffect, PrepareRouteEffect, Provider,
-    ServerPrepare,
+    Configure, PrepareMiddlewareEffect, PrepareRouteEffect, Provider, ServerPrepare,
 };
+use axum_starter_macro::FromStateCollector;
 use futures::FutureExt;
 use hyper::Body;
 use tokio::sync::{mpsc, watch};
@@ -215,23 +215,7 @@ async fn start() {
         .expect("Server Error")
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRef, FromStateCollector)]
 struct MyState {
     on_fly: watch::Receiver<usize>,
-}
-
-impl FromRef<MyState> for watch::Receiver<usize> {
-    fn from_ref(input: &MyState) -> Self {
-        input.on_fly.clone()
-    }
-}
-
-impl FromStateCollector for MyState {
-    fn fetch_mut(
-        collector: &mut axum_starter::StateCollector,
-    ) -> Result<Self, axum_starter::TypeNotInState> {
-        Ok(Self {
-            on_fly: collector.take()?,
-        })
-    }
 }

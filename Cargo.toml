@@ -3,7 +3,7 @@ name = "axum-starter"
 version = "0.4.0"
 edition = "2021"
 authors = ["FrozenString<frozenstringstable@gmail.com>"]
-description = "A help crate for simplify the code of starting axum server "
+description = "A help crate for simplify the code of starting a axum server"
 homepage = "https://github.com/Goodjooy/axum-server-starter"
 documentation = "https://docs.rs/axum-starter"
 license = "MIT"
@@ -23,17 +23,22 @@ members = ["./codegen/axum-starter-macro", "./examples/*"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 axum = "0.6"
-axum-starter-macro = { path = "./codegen/axum-starter-macro"}
+axum-starter-macro = { path = "./codegen/axum-starter-macro" }
 futures = "0.3"
 http-body = "0.4"
 hyper = { version = "0.14", features = ["server"] }
 tap = "1"
 thiserror = "1"
 tower = "0.4"
-tracing = { version = "0.1.37", features = ["log"], optional = true }
+tracing = { version = "0.1", features = ["log"], optional = true }
 
 [dev-dependencies]
-tower-http = { version = "0.3.4", features = ["catch-panic", "trace","metrics"] }
+tower-http = { version = "0.3.4", features = [
+    "catch-panic",
+    "trace",
+    "metrics"
+] }
 tokio = { version = "1.21.2", features = ["full"] }
 simple_logger = "4.0.0"
 log = "0.4"
+axum = { version = "0.6", features = ["macros"] }
