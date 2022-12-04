@@ -1,7 +1,9 @@
 #![forbid(unsafe_code)]
 mod derive_config;
 mod derive_provider;
+mod from_state_collector;
 mod prepare_macro;
+
 use prepare_macro::inputs::attr_name::PrepareName;
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
@@ -83,6 +85,17 @@ pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     darling_err!(derive_config::provider_derive(derive_input))
 }
 
+/// impl `FromStateCollector` for special type
+///
+/// this implement is easy but boring, thus need macro to simplify it
+#[proc_macro_derive(FromStateCollector)]
+pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let derive_input = parse_macro_input!(input as DeriveInput);
+    darling_err!(from_state_collector::from_state_collector_macro(
+        derive_input
+    ))
+}
+
 /// make a function can apply as a `Prepare`
 ///
 /// ## Example
@@ -91,11 +104,24 @@ pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// the function arguments require can be provide by  the `Configure`.
 ///
-/// the return type require impl the trait `IntoFallibleEffect`, usually can be one of :
+/// the return type , usually can be one of :
 /// - `()`
-/// - `Result<impl PreparedEffect, CustomError>`
-/// - `impl PreparedEffect`
-/// - `impl IntoFallibleEffect`
+/// - `Result<impl @, CustomError>`
+/// - `impl @`
+/// > the `@` can be `PrepareRouteEffect`,
+/// `PrepareStateEffect` or
+///  `PrepareMiddlewareEffect`
+///
+/// **Note** if the return type is `Result<impl @, Error>`, need add `?` following the
+/// generate Name
+///
+/// ```rust
+/// #[prepare(Foo?)]
+/// fn prepare_foo() -> Result<(), std::io::Error>{
+///     // do something that might return Err()
+///     todo!()
+/// }
+/// ```
 ///
 /// the generate type name is present throw the macro argument,for example, if you want a Prepare task
 /// named `SeaConn`, just using like `#[prepare(SeaConn)]`
@@ -105,7 +131,16 @@ pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// ```rust
 /// #[prepare(Foo 'f)]
 /// fn prepare_foo(foo_name: &'f String){
-/// // do somethings
+///     // do somethings
+/// }
+/// ```
+/// some times store `Future` on stack may cause ***Stack Overflow***, you can using `box` before generate name
+/// make the return type became `Pin<Box<dyn Future>>`
+///
+/// ```rust
+/// #[prepare(box Foo)]
+/// async fn prepare_foo(){
+///     // do something may take place large space
 /// }
 /// ```
 #[proc_macro_attribute]

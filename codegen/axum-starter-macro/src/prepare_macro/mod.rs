@@ -10,6 +10,7 @@ pub mod inputs;
 
 pub fn prepare_macro(
     PrepareName {
+        may_fall,
         need_boxed,
         ident,
         lt,
@@ -38,7 +39,7 @@ pub fn prepare_macro(
     }
 
     let input = InputFn::from_fn_item(&item_fn, lt.as_ref())?;
-    let code_gen = CodeGen::new(ident, lt, *need_boxed, input);
+    let code_gen = CodeGen::new(ident, lt, *need_boxed, *may_fall, input);
 
     Ok(quote::quote! {
         # code_gen
