@@ -18,4 +18,8 @@ impl<C, FutEffect, Log, Graceful> ServerPrepare<C, FutEffect, Log, StateNotReady
             _phantom: PhantomData,
         }
     }
+    /// convenient function for [`ServerPrepare::convert_state::<()>`](axum_starter::ServerPrepare::convert_state)
+    pub fn no_state(self) -> ServerPrepare<C, FutEffect, Log, StateReady<()>, Graceful> {
+        self.convert_state::<()>()
+    }
 }
