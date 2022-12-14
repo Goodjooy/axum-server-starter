@@ -12,7 +12,7 @@ impl<S, T: 'static + Clone + Send + Sync + Any> PrepareMiddlewareEffect<S> for C
     type Middleware = Extension<T>;
 
     fn take(self, states: &mut crate::StateCollector) -> Result<Self::Middleware, TypeNotInState> {
-        let data = states.take_clone().unwrap();
+        let data = states.take_clone()?;
         Ok(Extension(data))
     }
 }
