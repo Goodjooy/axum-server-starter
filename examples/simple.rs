@@ -9,13 +9,15 @@ use std::{
 use axum::{
     extract::{FromRef, OriginalUri, Path, State},
     routing::get,
-    Router,
+    Extension, Router,
 };
 
 use axum_starter::{
+    middleware::CarryToExtension,
     prepare,
     router::{Fallback, Nest, Route},
     Configure, PrepareMiddlewareEffect, PrepareRouteEffect, Provider, ServerPrepare,
+    TypeNotInState,
 };
 use axum_starter_macro::FromStateCollector;
 use futures::FutureExt;
@@ -107,11 +109,21 @@ where
     B: http_body::Body + Send + 'static,
     watch::Receiver<usize>: FromRef<S>,
 {
-    Route::new(
-        "/on-fly",
-        get(|State(receive): State<watch::Receiver<usize>>| async move {
-            format!("on fly request : {}", *receive.borrow())
-        }),
+    (
+        Route::new(
+            "/on-fly",
+            get(|State(receive): State<watch::Receiver<usize>>| async move {
+                format!("on fly request : {}", *receive.borrow())
+            }),
+        ),
+        Route::new(
+            "/on-fly-ext",
+            get(
+                |Extension(receive): Extension<watch::Receiver<usize>>| async move {
+                    format!("on fly request : {}", *receive.borrow())
+                },
+            ),
+        ),
     )
 }
 
@@ -141,9 +153,12 @@ pub struct InFlight {
 impl<S> PrepareMiddlewareEffect<S> for InFlight {
     type Middleware = InFlightRequestsLayer;
 
-    fn take(self, states: &mut axum_starter::StateCollector) -> Self::Middleware {
+    fn take(
+        self,
+        states: &mut axum_starter::StateCollector,
+    ) -> Result<InFlightRequestsLayer, TypeNotInState> {
         states.insert(self.counter);
-        self.layer
+        Ok(self.layer)
     }
 }
 
@@ -185,6 +200,11 @@ async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
 
+#[prepare(CarryToExtension)]
+fn move_to_extension() -> CarryToExtension<watch::Receiver<usize>> {
+    CarryToExtension::new()
+}
+
 #[tokio::main]
 async fn main() {
     start().await
@@ -206,6 +226,7 @@ async fn start() {
         .prepare_route(EchoRouter)
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
+        .prepare_middleware::<Route<MyState, Body>, _, _, _>(CarryToExtension)
         .layer(TraceLayer::new_for_http())
         .prepare_start()
         .await

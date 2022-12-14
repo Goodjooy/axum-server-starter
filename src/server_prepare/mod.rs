@@ -87,7 +87,7 @@ where
 impl<C: 'static>
     ServerPrepare<
         C,
-        Ready<Result<EffectContainer<(), Identity>, PrepareError>>,
+        Ready<Result<EffectContainer<(), Identity>, PrepareStartError>>,
         NoLog,
         StateNotReady,
         NoGraceful,
@@ -135,7 +135,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
         // prepare task
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
         R: PrepareRouteEffect<State, Body>,
         // state
         State: FromStateCollector,

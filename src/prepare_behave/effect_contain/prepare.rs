@@ -8,7 +8,7 @@ use crate::{
         prepare_middleware::PrepareMiddlewareEffect, prepare_route::PrepareRouteEffect,
         prepare_state::PrepareStateEffect, Prepare,
     },
-    PrepareError,
+    PrepareError, PrepareStartError,
 };
 
 use super::EffectContainer;
@@ -58,7 +58,7 @@ impl<R, L> EffectContainer<R, L> {
         configure: Arc<C>,
     ) -> Result<
         EffectContainer<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
-        PrepareError,
+        PrepareStartError,
     >
     where
         C: 'static,
@@ -70,6 +70,6 @@ impl<R, L> EffectContainer<R, L> {
                 .prepare(configure)
                 .await
                 .map_err(PrepareError::to_prepare_error::<P, _>)?,
-        ))
+        )?)
     }
 }

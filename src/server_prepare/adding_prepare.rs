@@ -6,7 +6,7 @@ use crate::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer, StateCollector,
     },
-    ConcurrentPrepareSet, PrepareError, ServerPrepare,
+    ConcurrentPrepareSet, PrepareStartError, ServerPrepare,
 };
 
 impl<C: 'static, FutEffect, Log, State, Graceful>
@@ -22,18 +22,18 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         concurrent: F,
     ) -> ServerPrepare<
         C,
-        impl Future<Output = Result<EffectContainer<R, Li>, PrepareError>>,
+        impl Future<Output = Result<EffectContainer<R, Li>, PrepareStartError>>,
         Log,
         State,
         Graceful,
     >
     where
         F: FnOnce(
-                ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareError>>>,
+                ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareStartError>>>,
             ) -> ConcurrentPrepareSet<C, Fut>
             + 'static,
-        Fut: Future<Output = Result<StateCollector, PrepareError>>,
-        FutEffect: Future<Output = Result<EffectContainer<R, Li>, PrepareError>>,
+        Fut: Future<Output = Result<StateCollector, PrepareStartError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, Li>, PrepareStartError>>,
     {
         let prepares = self.span.in_scope(|| {
             debug!(mode = "Concurrent", action = "Add Prepare");
@@ -58,7 +58,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         impl Future<
             Output = Result<
                 EffectContainer<impl PrepareRouteEffect<S, B>, LayerInner>,
-                PrepareError,
+                PrepareStartError,
             >,
         >,
         Log,
@@ -66,7 +66,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         Graceful,
     >
     where
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
 
         P: Prepare<C>,
         P::Effect: PrepareRouteEffect<S, B>,
@@ -97,13 +97,13 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         prepare: P,
     ) -> ServerPrepare<
         C,
-        impl Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        impl Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
         Log,
         State,
         Graceful,
     >
     where
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
 
         P: Prepare<C>,
         P::Effect: PrepareStateEffect,
@@ -138,7 +138,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
                     R,
                     Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, LayerInner>,
                 >,
-                PrepareError,
+                PrepareStartError,
             >,
         >,
         Log,
@@ -146,7 +146,7 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         Graceful,
     >
     where
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
 
         P: Prepare<C>,
         P::Effect: PrepareMiddlewareEffect<S>,
@@ -169,13 +169,13 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         prepare: P,
     ) -> ServerPrepare<
         C,
-        impl Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        impl Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
         Log,
         State,
         Graceful,
     >
     where
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
+        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareStartError>>,
 
         P: Prepare<C, Effect = ()>,
     {

@@ -12,7 +12,7 @@ use crate::{
         effect_traits::{Prepare, PrepareStateEffect},
         StateCollector,
     },
-    PrepareError,
+    PrepareError, PrepareStartError,
 };
 
 /// apply all [Prepare](Prepare) task concurrently
@@ -26,7 +26,7 @@ pub struct ConcurrentPrepareSet<C, PFut> {
 
 impl<C, PFut> ConcurrentPrepareSet<C, PFut>
 where
-    PFut: Future<Output = Result<StateCollector, PrepareError>>,
+    PFut: Future<Output = Result<StateCollector, PrepareStartError>>,
 {
     /// get the [Future]
     pub(crate) fn into_internal_future(self) -> PFut {
@@ -36,7 +36,7 @@ where
 
 impl<C, PFut> ConcurrentPrepareSet<C, PFut>
 where
-    PFut: Future<Output = Result<StateCollector, PrepareError>>,
+    PFut: Future<Output = Result<StateCollector, PrepareStartError>>,
 
     C: 'static,
 {
@@ -46,7 +46,7 @@ where
     pub fn join_state<P>(
         self,
         prepare: P,
-    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>>
+    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareStartError>>>
     where
         P: Prepare<C>,
         P::Effect: PrepareStateEffect,
@@ -63,7 +63,9 @@ where
             prepare
                 .prepare(configure)
                 .into_future()
-                .map_err(PrepareError::to_prepare_error::<P, _>),
+                .map_err(PrepareError::to_prepare_error::<P, _>)
+                .map_err(PrepareStartError::from)
+                ,
         )
         .map(|(l, r)| {
             Ok({
@@ -85,7 +87,7 @@ where
     pub fn join<P: Prepare<C, Effect = ()>>(
         self,
         prepare: P,
-    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>> {
+    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareStartError>>> {
         debug!(
             mode = "concurrently",
             action = "Adding Prepare",
@@ -98,7 +100,8 @@ where
             prepare
                 .prepare(configure)
                 .into_future()
-                .map_err(PrepareError::to_prepare_error::<P, _>),
+                .map_err(PrepareError::to_prepare_error::<P, _>)
+                .map_err(PrepareStartError::from),
         )
         .map(|(l, r)| {
             r?;
@@ -112,7 +115,7 @@ where
     }
 }
 
-impl<C: 'static> ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareError>>> {
+impl<C: 'static> ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareStartError>>> {
     pub(crate) fn new(configure: Arc<C>) -> Self {
         Self {
             prepare_fut: ok(StateCollector::new()),

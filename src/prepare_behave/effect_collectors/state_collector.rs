@@ -37,6 +37,14 @@ impl StateCollector {
             .map(|data| *data)
             .ok_or(TypeNotInState(type_name::<T>()))
     }
+
+    pub fn take_clone<T: 'static + Any + Clone>(&self) -> Result<T, TypeNotInState> {
+        self.0
+            .get(&TypeId::of::<T>())
+            .and_then(|data| data.downcast_ref())
+            .cloned()
+            .ok_or(TypeNotInState(type_name::<T>()))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -6,6 +6,8 @@ use tower::{
     ServiceBuilder,
 };
 
+use crate::TypeNotInState;
+
 use super::{
     effect_collectors::state_collector::StateCollector,
     traits::{
@@ -48,20 +50,20 @@ impl<R, L> EffectContainer<R, L> {
     pub(crate) fn set_middleware<Service, E: PrepareMiddlewareEffect<Service>>(
         self,
         effect: E,
-    ) -> EffectContainer<R, Stack<E::Middleware, L>> {
+    ) -> Result<EffectContainer<R, Stack<E::Middleware, L>>,TypeNotInState> {
         let EffectContainer {
             mut states,
             middleware,
             route,
         } = self;
 
-        let middleware = middleware.layer(effect.take(&mut states));
+        let middleware = middleware.layer(effect.take(&mut states)?);
 
-        EffectContainer {
-            states,
-            middleware,
-            route,
-        }
+        Ok(EffectContainer {
+                    states,
+                    middleware,
+                    route,
+                })
     }
 
     pub(crate) fn layer<M>(self, layer: M) -> EffectContainer<R, Stack<M, L>> {
