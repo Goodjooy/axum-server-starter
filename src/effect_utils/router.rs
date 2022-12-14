@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use axum::{handler::Handler, routing::MethodRouter, Router};
+use axum::{handler::Handler, routing::MethodRouter, Extension, Router};
 
 use crate::prepare_behave::effect_traits::PrepareRouteEffect;
 
@@ -103,5 +103,20 @@ where
 {
     fn set_route(self, route: axum::Router<S, B>) -> axum::Router<S, B> {
         route.fallback(self.handle)
+    }
+}
+
+impl<T, S, B> PrepareRouteEffect<S, B> for Extension<T>
+where
+    T: 'static + Clone + Send + Sync,
+    S: Clone + Send + Sync + 'static,
+    B: http_body::Body + Send + 'static,
+{
+    fn set_route(self, route: Router<S, B>) -> Router<S, B>
+    where
+        B: http_body::Body + Send + 'static,
+        S: Clone + Send + Sync + 'static,
+    {
+        route.layer(self)
     }
 }
