@@ -200,10 +200,6 @@ async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
 
-#[prepare(CarryToExtension)]
-fn move_to_extension() -> CarryToExtension<watch::Receiver<usize>> {
-    CarryToExtension::new()
-}
 
 #[tokio::main]
 async fn main() {
@@ -226,7 +222,7 @@ async fn start() {
         .prepare_route(EchoRouter)
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
-        .prepare_middleware::<Route<MyState, Body>, _, _, _>(CarryToExtension)
+        .prepare_middleware::<Route<MyState, Body>, _, _, _>(CarryToExtension::<watch::Receiver<usize>>::new())
         .layer(TraceLayer::new_for_http())
         .prepare_start()
         .await
