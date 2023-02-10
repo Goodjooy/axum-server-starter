@@ -115,13 +115,13 @@ where
     )
 }
 
-#[prepare(box C)]
-fn routers<S, B>() -> impl PrepareRouteEffect<S, B>
+#[prepare(box C?)]
+fn routers<S, B>() -> Result<impl PrepareRouteEffect<S, B>, Infallible>
 where
     S: Clone + Send + Sync + 'static,
     B: http_body::Body + Send + 'static,
 {
-    (
+    Ok((
         Nest::new(
             "/aac/b",
             Router::new().route(
@@ -130,7 +130,7 @@ where
             ),
         ),
         Fallback::new(|| async { "oops" }),
-    )
+    ))
 }
 
 pub struct InFlight {
