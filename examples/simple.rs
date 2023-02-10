@@ -31,23 +31,20 @@ use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
     logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
     server
 )]
+#[provider(transparent)]
 struct Configure {
-    #[provider(ref, transparent)]
+    #[provider(ref)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
-    #[provider(transparent)]
     bar: SocketAddr,
-
+    #[provider(ignore_global)]
     foo_bar: (i32, i32),
-    #[provider(
-        transparent,
-        map_to(
-            ty = "Cloned<Iter<'a, i32>>",
-            by = "|vec|vec.iter().cloned()",
-            lifetime = "'a"
-        )
-    )]
+    #[provider(map_to(
+        ty = "Cloned<Iter<'a, i32>>",
+        by = "|vec|vec.iter().cloned()",
+        lifetime = "'a"
+    ))]
     iter: Vec<i32>,
 }
 
@@ -115,13 +112,13 @@ where
     )
 }
 
-#[prepare(box C)]
-fn routers<S, B>() -> impl PrepareRouteEffect<S, B>
+#[prepare(box C?)]
+fn routers<S, B>() -> Result<impl PrepareRouteEffect<S, B>, Infallible>
 where
     S: Clone + Send + Sync + 'static,
     B: http_body::Body + Send + 'static,
 {
-    (
+    Ok((
         Nest::new(
             "/aac/b",
             Router::new().route(
@@ -130,7 +127,7 @@ where
             ),
         ),
         Fallback::new(|| async { "oops" }),
-    )
+    ))
 }
 
 pub struct InFlight {

@@ -9,6 +9,10 @@ use super::fields::{FieldInfo, ProviderField};
 #[darling(attributes(provider), supports(struct_named))]
 pub struct ProviderDerive {
     ident: Ident,
+    #[darling(default)]
+    transparent: bool,
+    #[darling(default, rename = "ref")]
+    reference: bool,
     data: darling::ast::Data<util::Ignored, ProviderField>,
 }
 
@@ -21,7 +25,7 @@ impl ProviderDerive {
                 .take_struct()
                 .unwrap()
                 .into_iter()
-                .filter_map(ProviderField::into_info)
+                .filter_map(|field| field.into_info(self.transparent, self.reference))
                 .collect(),
         }
     }

@@ -10,6 +10,10 @@ With the growing of the server functions, the code which prepare multiply infras
 For example, I need connect to `Mysql` and `Redis`, start `MessageQuery` , start GracefulShutdown and so on.  
 In other to simplify the start up code with my server project, there comes the `axum-starter`
 
+## Safety
+
+the outer attribute `#![forbid(unsafe_code)]` enable
+
 ## Simple Example
 
 The following example using `axum-starter` starting a web server which
@@ -89,26 +93,26 @@ where
 
 ## Core Concept
 
-Each task before starting the server call `Prepare`. Each `Prepare` will Return a `PreparedEffect` for `ServerPrepare` to apply each prepare's effect on the server.
+Each task before starting the server call [`Prepare`](https://docs.rs/axum-starter/latest/axum_starter/trait.Prepare.html). Each `Prepare` will Return a `PreparedEffect` for `ServerPrepare` to apply each prepare's effect on the server.
 Finally, all `Prepare` are done and the server can be launch
 
-### `Prepare` trait
+### [`Prepare`](https://docs.rs/axum-starter/latest/axum_starter/trait.Prepare.html) trait
 
-the trait define how to apply the prepare task,
+the trait define the prepare task,
 after prepare down, it return a `PreparedEffect`
 
 ### `PreparedEffect` trait family
 
 the trait family will apply multiply effect on the server. include the following
 
-- Router
-- State
-- Middleware
+- [Router](https://docs.rs/axum-starter/latest/axum_starter/trait.PrepareRouteEffect.html)
+- [State](https://docs.rs/axum-starter/latest/axum_starter/trait.PrepareStateEffect.html)
+- [Middleware](https://docs.rs/axum-starter/latest/axum_starter/trait.PrepareMiddlewareEffect.html)
 
 ## `Concurrently` or `Serially`
 
 `Prepare`s will run one by one in default, in another word, they running _serially_,
-if you want run some `Prepare`s _concurrently_, you can call `ServerPrepare::append_concurrent`, to give a group of `Prepare`s running _concurrently_
+if you want run some `Prepare`s _concurrently_, you can call [`ServerPrepare::prepare_concurrent`](https://docs.rs/axum-starter/latest/axum_starter/struct.ServerPrepare.html#method.prepare_concurrent), to give a group of `Prepare`s running _concurrently_
 
 ## Set Middleware
 

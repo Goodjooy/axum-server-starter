@@ -1,11 +1,12 @@
 [package]
 name = "axum-starter"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["FrozenString<frozenstringstable@gmail.com>"]
 description = "A help crate for simplify the code of starting a axum server"
 homepage = "https://github.com/Goodjooy/axum-server-starter"
 documentation = "https://docs.rs/axum-starter"
+readme = "./Readme.md"
 license = "MIT"
 keywords = ["web", "http", "axum"]
 
@@ -23,7 +24,7 @@ members = ["./codegen/axum-starter-macro", "./examples/*"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 axum = "0.6"
-axum-starter-macro = { version = "0.5.0" }
+axum-starter-macro = { version = "0.5.1" , path = "./codegen/axum-starter-macro"}
 futures = "0.3"
 http-body = "0.4"
 hyper = { version = "0.14", features = ["server"] }

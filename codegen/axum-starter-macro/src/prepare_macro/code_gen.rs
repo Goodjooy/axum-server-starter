@@ -158,14 +158,17 @@ impl<'r> ToTokens for CodeGen<'r> {
 
         let ret_type = if *may_fall {
             quote::quote!(
-                ::core::result::Result<
-                    <#ret_type as ::axum_starter::FalliblePrepare>::Effect,
-                    <#ret_type as ::axum_starter::FalliblePrepare>::Error,
-
-                >
+                ::axum_starter::PrepareRet<#ret_type>
             )
         } else {
-            quote::quote!(::core::result::Result <#ret_type ,::core::convert::Infallible>)
+            quote::quote!(
+                ::axum_starter::PrepareRet<
+                    ::core::result::Result<
+                        #ret_type ,
+                        ::core::convert::Infallible
+                        >
+                >
+            )
         };
 
         let boxed_ret = if *boxed {
@@ -194,7 +197,7 @@ impl<'r> ToTokens for CodeGen<'r> {
                 #extra_generic
                 >
             (
-                config:std::sync::Arc<Config>
+                config: ::std::sync::Arc<Config>
             ) -> #boxed_ret
             where
                 Config : 'static,

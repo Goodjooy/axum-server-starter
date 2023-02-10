@@ -10,21 +10,25 @@ use syn::{parse_macro_input, DeriveInput, ItemFn};
 #[macro_use]
 mod utils;
 
-/// implement `Provider<T>` for each field of the struct
+/// implement [`Provider<T>`](https://docs.rs/axum-starter/latest/axum_starter/trait.Provider.html) for each field of the struct
 ///
 /// ## Example
 ///
 /// ```rust
 /// #[derive(Debug, Provider)]
+/// #[provider(ref)]
 /// struct Configure {
-///     // this will impl `Provider<&String>`  
-///     #[provider(ref, transparent)]
+///     // this will impl `Provider<&String>`
+///     // because of the `ref` on container and its own `transparent`
+///     #[provider(transparent)]
 ///     foo: String,
 ///     // this will not impl provide
 ///     #[provider(skip)]
 ///     bar: SocketAddr,
 ///     // this will impl `Provide<FooBar>`
 ///     // where `FooBar` is `struct FooBar((i32,i32));`
+///     // `ignore_global` will ignore the `ref` on the container
+///     #[provider(ignore_global)]
 ///     foo_bar: (i32, i32),
 /// }
 ///
@@ -34,8 +38,9 @@ mod utils;
 ///
 /// ```  
 ///
-/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone)  
-/// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type
+/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
+/// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type. Can be using on container to apply on all fields
+/// - using `ignore_global` to ignore the `ref` and `transparent` setting on container
 /// - using `skip` to not impl `Provider` for this field
 /// - using `map_to(ty , by)` to adding extra provide for [Type](syn::Type) by the giving function, if the type need lifetime mark,
 /// adding `lifetime = "'a"`, then using`'a` in your type for example `& 'a str`
@@ -47,7 +52,7 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 
 /// help macro from impl `ServeAddress`, `LoggerInitialization`, `ConfigureServerEffect`
 ///
-/// ##Example
+/// ## Example
 ///
 /// ```rust
 /// #[derive(Debug, Provider, Configure)]
@@ -69,15 +74,26 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 /// }
 ///
 /// ```  
-/// - using `address(provide)` direct using the config provide get address,
+/// ## Usage
+/// ### address
+/// - using `address(provide)` direct using the config provide to get address,
 /// - using `address(provide(ty = "..."))` similar to previous one, but using the provide type
-///     **Note** the provided type need impl [Into<std::net::SocketAddr>]
-/// - using `address(func(path = "...", ty = "...", associate))` using provide function get the socket address,
-/// the `ty` is optional,default is [std::net::SocketAddr], the function look like `fn (&self) -> $ty`, the `associate` is optional, if provide, the func can be `fn()->$ty`
+///     **Note**: the provided type need impl [Into<std::net::SocketAddr>](Into<std::net::SocketAddr>)
+///
+/// - using `address(func(path = "...", ty = "...", associate))` using provide function get the socket address
+///     - `path` a path to a function or a closure expr, its signature is `Fn(config: &Self) -> $ty`
+///     - `ty` (optional) default is [std::net::SocketAddr]
+///     - `associate`(optional) set whether the function to call need argument `Self`,
+///        if set `associate` the signature of function to call is `Fn()->$ty`
+///
+/// ### logger
 /// - using `logger(error="...", func="...",associate)` to impl `LoggerInitialization`,
-/// the func look like `fn (&self) -> Result<(), $error>`, the `associate` is optional, if provide,the func can be `fn() -> Result<(),$error>`
+/// the `func` and `associate` is similar to the `path` and `associate` of `address(func(path="...", associate))` but the return type became `Result<(),$error>`
+///     - `error` the error that might ocurred during initialization the log system
+///
+/// ### server
 /// - using `server="..."` to impl `ConfigureServerEffect` with internally call the provide func or
-/// just using `server` or ignore it to having an empty impl. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`
+/// just using `server` or ignore it to having an empty implement. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`
 ///
 #[proc_macro_derive(Configure, attributes(conf))]
 pub fn derive_config_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -101,6 +117,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// ## Example
 ///
 /// [macro@prepare] support either sync or async function.
+/// It can generate type which implement the [`Prepare`](https://docs.rs/axum-starter/latest/axum_starter/trait.Prepare.html) trait
 ///
 /// the function arguments require can be provide by  the `Configure`.
 ///
@@ -123,7 +140,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// }
 /// ```
 ///
-/// the generate type name is present throw the macro argument,for example, if you want a Prepare task
+/// the generate type name is present by the macro argument, for example, if you want a Prepare task
 /// named `SeaConn`, just using like `#[prepare(SeaConn)]`
 ///
 /// if your function argument contain reference or other types witch need a lifetime, just add the lifetime to the macro arguments list,

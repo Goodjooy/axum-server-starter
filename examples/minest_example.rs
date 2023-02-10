@@ -1,5 +1,5 @@
 use axum::{extract::Path, routing::get};
-use axum_starter::{prepare, router::Route, ServerPrepare};
+use axum_starter::{prepare, router::Route, PrepareRouteEffect, ServerPrepare};
 use config::Conf;
 use tower_http::trace::TraceLayer;
 
@@ -54,7 +54,7 @@ async fn greet(Path(name): Path<String>) -> String {
 }
 
 #[prepare(GreetRoute)]
-fn greet_route<S, B>() -> Route<S, B>
+fn greet_route<S, B>() -> impl PrepareRouteEffect<S, B>
 where
     B: http_body::Body + Send + 'static,
     S: Clone + Send + Sync + 'static,
