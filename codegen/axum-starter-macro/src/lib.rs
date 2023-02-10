@@ -16,15 +16,19 @@ mod utils;
 ///
 /// ```rust
 /// #[derive(Debug, Provider)]
+/// #[provider(ref)]
 /// struct Configure {
-///     // this will impl `Provider<&String>`  
-///     #[provider(ref, transparent)]
+///     // this will impl `Provider<&String>` 
+///     // because of the `ref` on container and its own `transparent`
+///     #[provider(transparent)]
 ///     foo: String,
 ///     // this will not impl provide
 ///     #[provider(skip)]
 ///     bar: SocketAddr,
 ///     // this will impl `Provide<FooBar>`
 ///     // where `FooBar` is `struct FooBar((i32,i32));`
+///     // `ignore_global` will ignore the `ref` on the container
+///     #[provider(ignore_global)]
 ///     foo_bar: (i32, i32),
 /// }
 ///
@@ -34,8 +38,9 @@ mod utils;
 ///
 /// ```  
 ///
-/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone)  
-/// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type
+/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
+/// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type. Can be using on container to apply on all fields
+/// - using `ignore_global` to ignore the `ref` and `transparent` setting on container
 /// - using `skip` to not impl `Provider` for this field
 /// - using `map_to(ty , by)` to adding extra provide for [Type](syn::Type) by the giving function, if the type need lifetime mark,
 /// adding `lifetime = "'a"`, then using`'a` in your type for example `& 'a str`

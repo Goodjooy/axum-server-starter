@@ -31,17 +31,16 @@ use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
     logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
     server
 )]
+#[provider(transparent)]
 struct Configure {
-    #[provider(ref, transparent)]
+    #[provider(ref)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
-    #[provider(transparent)]
     bar: SocketAddr,
-
+    #[provider(ignore_global)]
     foo_bar: (i32, i32),
     #[provider(
-        transparent,
         map_to(
             ty = "Cloned<Iter<'a, i32>>",
             by = "|vec|vec.iter().cloned()",

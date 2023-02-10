@@ -23,6 +23,9 @@ pub struct ProviderField {
 
     #[darling(default, rename = "ref")]
     provide_ref: bool,
+    
+    #[darling(default)]
+    ignore_global:bool,
 
     #[darling(default)]
     rename: Option<Ident>,
@@ -41,6 +44,7 @@ impl ProviderField {
             rename,
             map_to: aliases,
             provide_ref,
+            ignore_global,
         } = self;
 
         match &ident {
@@ -58,10 +62,6 @@ impl ProviderField {
             Err(darling::Error::duplicate_field("skip").with_span(&skip))?;
         }
 
-        // if provide_ref {
-        //     Err(darling::Error::unexpected_type("ref Not support").with_span(&provide_ref))?;
-        // }
-
         Ok(Self {
             ident,
             ty,
@@ -70,6 +70,7 @@ impl ProviderField {
             rename,
             map_to: aliases,
             provide_ref,
+            ignore_global,
         })
     }
 
@@ -82,11 +83,12 @@ impl ProviderField {
             rename,
             map_to,
             provide_ref,
+            ignore_global,
         } = self;
         let ident = ident?;
         let upper_ident = format_ident!("{}", snake_to_upper(&ident.to_string()));
-        let transparent = transparent || outer_transparent;
-        let provide_ref = provide_ref || outer_ref;
+        let transparent = transparent || (outer_transparent && !ignore_global);
+        let provide_ref = provide_ref || (outer_ref && !ignore_global);
         if skip {
             None
         } else {
