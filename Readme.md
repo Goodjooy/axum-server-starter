@@ -10,6 +10,10 @@ With the growing of the server functions, the code which prepare multiply infras
 For example, I need connect to `Mysql` and `Redis`, start `MessageQuery` , start GracefulShutdown and so on.  
 In other to simplify the start up code with my server project, there comes the `axum-starter`
 
+## Safety
+
+the outer attribute `#![forbid(unsafe_code)]` enable
+
 ## Simple Example
 
 The following example using `axum-starter` starting a web server which
