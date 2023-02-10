@@ -23,9 +23,9 @@ pub struct ProviderField {
 
     #[darling(default, rename = "ref")]
     provide_ref: bool,
-    
+
     #[darling(default)]
-    ignore_global:bool,
+    ignore_global: bool,
 
     #[darling(default)]
     rename: Option<Ident>,

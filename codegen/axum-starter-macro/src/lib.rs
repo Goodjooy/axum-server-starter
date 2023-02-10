@@ -18,7 +18,7 @@ mod utils;
 /// #[derive(Debug, Provider)]
 /// #[provider(ref)]
 /// struct Configure {
-///     // this will impl `Provider<&String>` 
+///     // this will impl `Provider<&String>`
 ///     // because of the `ref` on container and its own `transparent`
 ///     #[provider(transparent)]
 ///     foo: String,
@@ -79,18 +79,18 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 /// - using `address(provide)` direct using the config provide to get address,
 /// - using `address(provide(ty = "..."))` similar to previous one, but using the provide type
 ///     **Note**: the provided type need impl [Into<std::net::SocketAddr>](Into<std::net::SocketAddr>)
-/// 
+///
 /// - using `address(func(path = "...", ty = "...", associate))` using provide function get the socket address
 ///     - `path` a path to a function or a closure expr, its signature is `Fn(config: &Self) -> $ty`
 ///     - `ty` (optional) default is [std::net::SocketAddr]
-///     - `associate`(optional) set whether the function to call need argument `Self`, 
+///     - `associate`(optional) set whether the function to call need argument `Self`,
 ///        if set `associate` the signature of function to call is `Fn()->$ty`
-/// 
+///
 /// ### logger
 /// - using `logger(error="...", func="...",associate)` to impl `LoggerInitialization`,
 /// the `func` and `associate` is similar to the `path` and `associate` of `address(func(path="...", associate))` but the return type became `Result<(),$error>`
 ///     - `error` the error that might ocurred during initialization the log system
-/// 
+///
 /// ### server
 /// - using `server="..."` to impl `ConfigureServerEffect` with internally call the provide func or
 /// just using `server` or ignore it to having an empty implement. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`

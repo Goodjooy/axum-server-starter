@@ -40,13 +40,11 @@ struct Configure {
     bar: SocketAddr,
     #[provider(ignore_global)]
     foo_bar: (i32, i32),
-    #[provider(
-        map_to(
-            ty = "Cloned<Iter<'a, i32>>",
-            by = "|vec|vec.iter().cloned()",
-            lifetime = "'a"
-        )
-    )]
+    #[provider(map_to(
+        ty = "Cloned<Iter<'a, i32>>",
+        by = "|vec|vec.iter().cloned()",
+        lifetime = "'a"
+    ))]
     iter: Vec<i32>,
 }
 
