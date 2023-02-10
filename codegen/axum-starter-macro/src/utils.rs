@@ -1,24 +1,8 @@
+use heck::ToUpperCamelCase;
 use syn::{spanned::Spanned, Expr};
 
 pub(crate) fn snake_to_upper(src: &str) -> String {
-    let mut st = String::with_capacity(src.len());
-    let chars = src.chars();
-
-    chars.fold((&mut st, true), |(st, need_upper), ch| {
-        if ch == '_' {
-            (st, true)
-        } else {
-            let ch = if need_upper {
-                ch.to_ascii_uppercase()
-            } else {
-                ch
-            };
-            st.push(ch);
-            (st, false)
-        }
-    });
-
-    st
+    ToUpperCamelCase::to_upper_camel_case(src)
 }
 
 macro_rules! darling_err {

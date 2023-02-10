@@ -73,7 +73,7 @@ impl ProviderField {
         })
     }
 
-    pub fn into_info(self) -> Option<FieldInfo> {
+    pub fn into_info(self, outer_transparent: bool, outer_ref: bool) -> Option<FieldInfo> {
         let Self {
             ident,
             ty,
@@ -85,7 +85,8 @@ impl ProviderField {
         } = self;
         let ident = ident?;
         let upper_ident = format_ident!("{}", snake_to_upper(&ident.to_string()));
-
+        let transparent = transparent || outer_transparent;
+        let provide_ref = provide_ref || outer_ref;
         if skip {
             None
         } else {
