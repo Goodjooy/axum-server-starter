@@ -29,3 +29,5 @@ pub use effect_utils::{router, state};
 pub use prepare_sets::{concurrent_set::ConcurrentPrepareSet, serial_set::SerialPrepareSet};
 
 pub use hyper::server::{conn::AddrIncoming, Builder};
+/// [`Prepare`](crate::Prepare) return type, helper for macro code gen
+pub type PrepareRet<E> = Result<<E as FalliblePrepare>::Effect, <E as FalliblePrepare>::Error>;
