@@ -11,7 +11,7 @@ pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 
 pub type ContainerResult<Route, Layer> = Result<EffectContainer<Route, Layer>, PrepareError>;
 
-pub type ContainerFuture<R, L> = BoxFuture< ContainerResult<R, L>>;
+pub type ContainerFuture<R, L> = BoxFuture<ContainerResult<R, L>>;
 
 pub type StateContainerResult = Result<StateCollector, PrepareError>;
-pub type StateContainerFuture = BoxFuture< StateContainerResult>;
+pub type StateContainerFuture = BoxFuture<StateContainerResult>;

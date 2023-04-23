@@ -2,9 +2,7 @@
 use std::{any::type_name, mem::size_of_val};
 use std::{future::IntoFuture, sync::Arc};
 
-use futures::{
-    future::{ok}, FutureExt, TryFutureExt,
-};
+use futures::{future::ok, FutureExt, TryFutureExt};
 use http_body::Body;
 use tower::layer::util::{Identity, Stack};
 
@@ -42,6 +40,11 @@ impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>> {
         (self.prepare_fut, self.configure)
     }
 }
+
+type MiddlewareContainerResult<R, L, P, S, C> = ContainerResult<
+    R,
+    Stack<<<P as Prepare<C>>::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>,
+>;
 
 impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>>
 where
@@ -115,10 +118,7 @@ where
     pub(crate) fn then_middleware<P, S>(
         self,
         prepare: P,
-    ) -> SerialPrepareSet<
-        C,
-        ContainerResult<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
-    >
+    ) -> SerialPrepareSet<C, MiddlewareContainerResult<R, L, P, S, C>>
     where
         S: 'static,
         P: Prepare<C> + 'static,

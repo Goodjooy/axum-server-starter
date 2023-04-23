@@ -1,12 +1,26 @@
 use tower::layer::util::Stack;
 
 use crate::{
-    prepare_behave::{
-        effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
+    prepare_behave::effect_traits::{
+        Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect,
     },
     prepare_sets::ContainerResult,
     ConcurrentPrepareSet, ServerPrepare,
 };
+
+type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful> =
+    ServerPrepare<C, ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>, Log, State, Graceful>;
+
+type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful> = ServerPrepare<
+    C,
+    ContainerResult<
+        Ri,
+        Stack<<<P as Prepare<C>>::Effect as PrepareMiddlewareEffect<S>>::Middleware, Li>,
+    >,
+    Log,
+    State,
+    Graceful,
+>;
 
 impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful>
@@ -41,7 +55,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_route<P, B, S>(
         self,
         prepare: P,
-    ) -> ServerPrepare<C, ContainerResult<(P::Effect, Ri), Li>, Log, State, Graceful>
+    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S, B>,
@@ -97,13 +111,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_middleware<S, P>(
         self,
         prepare: P,
-    ) -> ServerPrepare<
-        C,
-        ContainerResult<Ri, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, Li>>,
-        Log,
-        State,
-        Graceful,
-    >
+    ) -> ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful>
     where
         S: 'static,
         P: Prepare<C> + 'static,

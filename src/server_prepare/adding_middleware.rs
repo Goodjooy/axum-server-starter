@@ -2,11 +2,11 @@ use tower::layer::util::Stack;
 
 use crate::{prepare_sets::ContainerResult, ServerPrepare};
 
-impl<C: 'static, Log, State, Graceful, R:'static, L:'static>
+impl<C: 'static, Log, State, Graceful, R: 'static, L: 'static>
     ServerPrepare<C, ContainerResult<R, L>, Log, State, Graceful>
 {
     /// adding middleware without previously [Prepare](crate::Prepare) action
-    pub fn layer<M:'static>(
+    pub fn layer<M: 'static>(
         self,
         middleware: M,
     ) -> ServerPrepare<C, ContainerResult<R, Stack<M, L>>, Log, State, Graceful> {
