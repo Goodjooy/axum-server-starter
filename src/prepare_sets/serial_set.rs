@@ -3,8 +3,7 @@ use std::{any::type_name, mem::size_of_val};
 use std::{future::IntoFuture, sync::Arc};
 
 use futures::{
-    future::{ok, Ready},
-    Future, TryFutureExt,
+    future::{ok}, FutureExt, TryFutureExt,
 };
 use http_body::Body;
 use tower::layer::util::{Identity, Stack};
@@ -12,21 +11,23 @@ use tower::layer::util::{Identity, Stack};
 use crate::{
     prepare_behave::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
-        EffectContainer, StateCollector,
+        EffectContainer,
     },
     ConcurrentPrepareSet, PrepareError,
 };
+
+use super::{BoxFuture, ContainerFuture, ContainerResult};
 
 /// a set of [Prepare] task executing one by one
 ///
 /// ## Note
 /// the sync part of [Prepare] will be run immediately
-pub struct SerialPrepareSet<C, PFut> {
-    prepare_fut: PFut,
+pub struct SerialPrepareSet<C, T> {
+    prepare_fut: BoxFuture<T>,
     configure: Arc<C>,
 }
 
-impl<C, PFut> SerialPrepareSet<C, PFut> {
+impl<C, T> SerialPrepareSet<C, T> {
     pub(crate) fn get_ref_configure(&self) -> &C {
         &self.configure
     }
@@ -36,19 +37,17 @@ impl<C, PFut> SerialPrepareSet<C, PFut> {
     }
 }
 
-impl<C, PFut, R, L> SerialPrepareSet<C, PFut>
-where
-    PFut: Future<Output = Result<EffectContainer<R, L>, PrepareError>>,
-{
-    pub(crate) fn unwrap(self) -> (PFut, Arc<C>) {
+impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>> {
+    pub(crate) fn unwrap(self) -> (ContainerFuture<R, L>, Arc<C>) {
         (self.prepare_fut, self.configure)
     }
 }
 
-impl<C, PFut, R, L> SerialPrepareSet<C, PFut>
+impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>>
 where
-    PFut: Future<Output = Result<EffectContainer<R, L>, PrepareError>>,
     C: 'static,
+    R: 'static,
+    L: 'static,
 {
     /// add a [Prepare] into serially executing set
     ///
@@ -56,12 +55,9 @@ where
     pub(crate) fn then_route<P, S, B>(
         self,
         prepare: P,
-    ) -> SerialPrepareSet<
-        C,
-        impl Future<Output = Result<EffectContainer<(P::Effect, R), L>, PrepareError>>,
-    >
+    ) -> SerialPrepareSet<C, ContainerResult<(P::Effect, R), L>>
     where
-        P: Prepare<C>,
+        P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S, B>,
         P::Error: 'static,
         R: PrepareRouteEffect<S, B>,
@@ -78,7 +74,8 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_route(prepare, configure));
+            .and_then(|collector| collector.then_route(prepare, configure))
+            .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
@@ -89,12 +86,9 @@ where
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareStateEffect]
-    pub(crate) fn then_state<P>(
-        self,
-        prepare: P,
-    ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
+    pub(crate) fn then_state<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>>
     where
-        P: Prepare<C>,
+        P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
     {
         debug!(
@@ -107,7 +101,8 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_state(prepare, configure));
+            .and_then(|collector| collector.then_state(prepare, configure))
+            .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
@@ -122,15 +117,11 @@ where
         prepare: P,
     ) -> SerialPrepareSet<
         C,
-        impl Future<
-            Output = Result<
-                EffectContainer<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
-                PrepareError,
-            >,
-        >,
+        ContainerResult<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
     >
     where
-        P: Prepare<C>,
+        S: 'static,
+        P: Prepare<C> + 'static,
         P::Effect: PrepareMiddlewareEffect<S>,
     {
         debug!(
@@ -143,7 +134,8 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_middleware(prepare, configure));
+            .and_then(|collector| collector.then_middleware(prepare, configure))
+            .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
@@ -153,12 +145,9 @@ where
     /// add a [Prepare] into serially executing set
     ///
     /// without Effect
-    pub(crate) fn then<P>(
-        self,
-        prepare: P,
-    ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
+    pub(crate) fn then<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>>
     where
-        P: Prepare<C, Effect = ()>,
+        P: Prepare<C, Effect = ()> + 'static,
     {
         debug!(
             mode = "serially",
@@ -168,13 +157,16 @@ where
 
         let configure = self.get_configure();
 
-        let prepare_fut = self.prepare_fut.and_then(|collect| {
-            prepare
-                .prepare(configure)
-                .into_future()
-                .map_ok(|_| collect)
-                .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
-        });
+        let prepare_fut = self
+            .prepare_fut
+            .and_then(|collect| {
+                prepare
+                    .prepare(configure)
+                    .into_future()
+                    .map_ok(|_| collect)
+                    .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
+            })
+            .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
@@ -183,32 +175,30 @@ where
     }
 
     /// just adding a middleware
-    pub(crate) fn set_middleware<M>(
+    pub(crate) fn set_middleware<M: 'static>(
         self,
         layer: M,
-    ) -> SerialPrepareSet<
-        C,
-        impl Future<Output = Result<EffectContainer<R, Stack<M, L>>, PrepareError>>,
-    > {
+    ) -> SerialPrepareSet<C, ContainerResult<R, Stack<M, L>>> {
         SerialPrepareSet {
-            prepare_fut: self.prepare_fut.map_ok(|effect| effect.layer(layer)),
+            prepare_fut: self
+                .prepare_fut
+                .map_ok(|effect| effect.layer(layer))
+                .boxed_local(),
             configure: self.configure,
         }
     }
 
     /// combine concurrent set into self
-    pub(crate) fn combine<ConcurrentFut>(
+    pub(crate) fn combine(
         self,
-        concurrent: ConcurrentPrepareSet<C, ConcurrentFut>,
-    ) -> SerialPrepareSet<C, impl Future<Output = Result<EffectContainer<R, L>, PrepareError>>>
-    where
-        ConcurrentFut: Future<Output = Result<StateCollector, PrepareError>>,
-    {
+        concurrent: ConcurrentPrepareSet<C>,
+    ) -> SerialPrepareSet<C, ContainerResult<R, L>> {
         let fut = concurrent.into_internal_future();
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|container| fut.map_ok(|states| container.combine_state(states)));
+            .and_then(|container| fut.map_ok(|states| container.combine_state(states)))
+            .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
@@ -217,10 +207,10 @@ where
     }
 }
 
-impl<C: 'static> SerialPrepareSet<C, Ready<Result<EffectContainer<(), Identity>, PrepareError>>> {
+impl<C: 'static> SerialPrepareSet<C, ContainerResult<(), Identity>> {
     pub(crate) fn new(configure: Arc<C>) -> Self {
         Self {
-            prepare_fut: ok(EffectContainer::new()),
+            prepare_fut: ok(EffectContainer::new()).boxed_local(),
             configure,
         }
     }
