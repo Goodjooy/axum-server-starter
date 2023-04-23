@@ -13,14 +13,15 @@ use std::{
 
 use axum::{body::Bytes, routing::Route, BoxError, Router};
 
-use futures::{future::Ready, Future};
+use futures::Future;
 
 use hyper::{server, Body, Request, Response};
 use tap::Pipe;
 use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
 
 use crate::{
-    prepare_behave::{effect_traits::PrepareRouteEffect, EffectContainer, FromStateCollector},
+    prepare_behave::{effect_traits::PrepareRouteEffect, FromStateCollector},
+    prepare_sets::ContainerResult,
     server_ready::ServerReady,
     SerialPrepareSet,
 };
@@ -39,9 +40,8 @@ pub struct NoLog;
 pub struct LogInit;
 
 /// type for prepare starting
-pub struct ServerPrepare<C, FutEffect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful>
-{
-    prepares: SerialPrepareSet<C, FutEffect>,
+pub struct ServerPrepare<C, Effect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful> {
+    prepares: SerialPrepareSet<C, Effect>,
     graceful: Graceful,
     #[cfg(feature = "logger")]
     span: tracing::Span,
@@ -84,15 +84,7 @@ where
     }
 }
 
-impl<C: 'static>
-    ServerPrepare<
-        C,
-        Ready<Result<EffectContainer<(), Identity>, PrepareError>>,
-        NoLog,
-        StateNotReady,
-        NoGraceful,
-    >
-{
+impl<C: 'static> ServerPrepare<C, ContainerResult<(), Identity>, NoLog, StateNotReady, NoGraceful> {
     /// prepare staring the service with config
     pub fn with_config(config: C) -> Self
     where
@@ -105,13 +97,13 @@ impl<C: 'static>
         ServerPrepare::new(SerialPrepareSet::new(Arc::new(config)), NoGraceful, span)
     }
 }
-impl<C: 'static, FutEffect, Log, State, Graceful>
-    ServerPrepare<C, FutEffect, Log, StateReady<State>, Graceful>
+impl<C: 'static, Log, State, Graceful, R, L>
+    ServerPrepare<C, ContainerResult<R, L>, Log, StateReady<State>, Graceful>
 {
     /// prepare to start this server
     ///
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
-    pub async fn prepare_start<R, LayerInner, NewResBody>(
+    pub async fn prepare_start<NewResBody>(
         self,
     ) -> Result<
         ServerReady<
@@ -124,18 +116,16 @@ impl<C: 'static, FutEffect, Log, State, Graceful>
         // config
         C: ServeAddress + ConfigureServerEffect,
         // middleware
-        LayerInner: Send + 'static,
-        ServiceBuilder<LayerInner>: Layer<Route> + Clone,
-        <ServiceBuilder<LayerInner> as Layer<Route>>::Service: Send
+        L: Send + 'static,
+        ServiceBuilder<L>: Layer<Route> + Clone,
+        <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
             + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
             + 'static,
-        <<ServiceBuilder<LayerInner> as Layer<Route>>::Service as Service<Request<Body>>>::Future:
-            Send,
+        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
         // prepare task
-        FutEffect: Future<Output = Result<EffectContainer<R, LayerInner>, PrepareError>>,
         R: PrepareRouteEffect<State, Body>,
         // state
         State: FromStateCollector,
