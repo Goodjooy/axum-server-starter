@@ -202,7 +202,7 @@ async fn start() {
         .prepare_concurrent(|set| set.join(ShowFoo::<_, String>).join(Show).join(Sleeping))
         .prepare_route(EchoRouter)
         .prepare_route(OnFlyRoute)
-        .prepare_middleware::<Route<MyState, Body>, _, _, _>(OnFlyMiddleware)
+        .prepare_middleware::<Route<MyState, Body>, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
         .prepare_start()
         .await
