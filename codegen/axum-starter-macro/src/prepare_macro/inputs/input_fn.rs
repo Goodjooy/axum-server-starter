@@ -5,6 +5,8 @@ use syn::{
     LifetimeDef, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
 };
 
+use crate::utils::check_accept_args_type;
+
 pub struct InputFn<'r> {
     pub is_async: bool,
     pub fn_name: &'r syn::Ident,
@@ -42,6 +44,12 @@ impl<'r> InputFn<'r> {
                 r.span(),
                 "`prepare` not support fn with Self receiver",
             ))?;
+        }
+
+        for arg_types in sig.inputs.iter() {
+            if let FnArg::Typed(PatType { ty, .. }) = arg_types {
+                check_accept_args_type(ty)?;
+            }
         }
 
         let generic = GenericWithBound::new(&sig.generics, lifetime)?;
