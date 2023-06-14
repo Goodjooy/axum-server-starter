@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, Pat, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
+    LifetimeDef, Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam, WherePredicate,
 };
 
 use crate::utils::check_accept_args_type;
@@ -27,6 +27,7 @@ pub struct InputFn<'r> {
     pub generic: GenericWithBound<'r>,
     pub args_type: Vec<ArgInfo<'r>>,
     pub ret: Option<&'r Type>,
+    pub fn_body: &'r [Stmt],
 }
 
 impl<'r> InputFn<'r> {
@@ -84,6 +85,7 @@ impl<'r> InputFn<'r> {
                 .collect(),
             generic,
             ret,
+            fn_body: item.block.stmts.as_slice(),
         })
     }
 }
