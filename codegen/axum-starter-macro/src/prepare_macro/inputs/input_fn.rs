@@ -22,8 +22,6 @@ impl<'r> ArgInfo<'r> {
 }
 
 pub struct InputFn<'r> {
-    pub is_async: bool,
-    pub fn_name: &'r syn::Ident,
     pub generic: GenericWithBound<'r>,
     pub args_type: Vec<ArgInfo<'r>>,
     pub ret: Option<&'r Type>,
@@ -73,8 +71,6 @@ impl<'r> InputFn<'r> {
             syn::ReturnType::Type(_, ref ty) => Some(ty.deref()),
         };
         Ok(Self {
-            is_async: sig.asyncness.is_some(),
-            fn_name: &sig.ident,
             args_type: sig
                 .inputs
                 .iter()

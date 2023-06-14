@@ -1,20 +1,16 @@
-use std::marker::PhantomData;
-
 use darling::ToTokens;
 
 use quote::format_ident;
-use syn::{punctuated::Punctuated, Lifetime, Stmt, Token, Type};
+use syn::{Lifetime, Stmt, Type};
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
-    call_async: bool,
     may_fall: bool,
     boxed: bool,
 
     prepare_name: &'r syn::Ident,
     prepare_generic: GenericWithBound<'r>,
-    prepare_call: &'r syn::Ident,
 
     call_args: Vec<ArgInfo<'r>>,
     fn_body: &'r [Stmt],
@@ -29,8 +25,6 @@ impl<'r> CodeGen<'r> {
         boxed: bool,
         may_fall: bool,
         InputFn {
-            is_async,
-            fn_name,
             args_type,
             generic,
             ret,
@@ -38,9 +32,7 @@ impl<'r> CodeGen<'r> {
         }: InputFn<'r>,
     ) -> Self {
         Self {
-            call_async: is_async,
             prepare_name,
-            prepare_call: fn_name,
             call_args: args_type,
             args_lifetime: arg_lifetime.as_ref(),
             prepare_generic: generic,
@@ -55,9 +47,7 @@ impl<'r> CodeGen<'r> {
 impl<'r> ToTokens for CodeGen<'r> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let Self {
-            call_async,
             prepare_name,
-            prepare_call,
             call_args,
             args_lifetime,
             prepare_generic,
@@ -65,6 +55,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             may_fall,
             ret_type,
             fn_body,
+            ..
         } = self;
 
         let bound_lifetime = match args_lifetime {
@@ -82,28 +73,6 @@ impl<'r> ToTokens for CodeGen<'r> {
                 # type_generic
                 # const_generic
             }
-        };
-
-        let generic_set = {
-            let GenericWithBound {
-                type_generic,
-                const_generic,
-                ..
-            } = prepare_generic;
-
-            let ty_generic = type_generic
-                .into_iter()
-                .map(|v| &v.ident)
-                .collect::<Punctuated<_, Token!(,)>>();
-            let const_generic = const_generic
-                .into_iter()
-                .map(|v| &v.ident)
-                .collect::<Punctuated<_, Token!(,)>>();
-
-            quote::quote!(
-                #ty_generic
-                #const_generic
-            )
         };
 
         let extra_bounds = prepare_generic.where_closure.as_ref();
@@ -140,12 +109,6 @@ impl<'r> ToTokens for CodeGen<'r> {
             quote::quote!(let #inner_struct_name(#(#pattens,)* _) = args;)
         };
 
-        let awaiting = if *call_async {
-            Some(quote::quote!(.await))
-        } else {
-            None
-        };
-
         let execute_prepare = quote::quote! {
             #inner_struct
             #construct_inner_struct
@@ -179,9 +142,9 @@ impl<'r> ToTokens for CodeGen<'r> {
                 )
             }
         } else {
-            quote::quote!{
+            quote::quote! {
                 #execute_prepare
-                #mapped_func_call 
+                #mapped_func_call
 
             }
         };
