@@ -2,16 +2,30 @@ use std::ops::Deref;
 
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
+    LifetimeDef, Pat, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
 };
 
 use crate::utils::check_accept_args_type;
+
+pub struct ArgInfo<'r> {
+    pub patten: &'r Pat,
+    pub ty: &'r Type,
+}
+
+impl<'r> ArgInfo<'r> {
+    fn new(pat_type: &'r PatType) -> Self {
+        Self {
+            patten: &pat_type.pat,
+            ty: &pat_type.ty,
+        }
+    }
+}
 
 pub struct InputFn<'r> {
     pub is_async: bool,
     pub fn_name: &'r syn::Ident,
     pub generic: GenericWithBound<'r>,
-    pub args_type: Vec<&'r syn::Type>,
+    pub args_type: Vec<ArgInfo<'r>>,
     pub ret: Option<&'r Type>,
 }
 
@@ -65,7 +79,7 @@ impl<'r> InputFn<'r> {
                 .iter()
                 .filter_map(|input| match input {
                     FnArg::Receiver(_) => None,
-                    FnArg::Typed(PatType { ty, .. }) => Some(ty.as_ref()),
+                    FnArg::Typed(pat_type) => Some(ArgInfo::new(pat_type)),
                 })
                 .collect(),
             generic,
