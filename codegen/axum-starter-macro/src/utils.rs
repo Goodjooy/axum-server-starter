@@ -65,7 +65,7 @@ pub(crate) fn check_accept_args_type(ty: &Type) -> Result<(), syn::Error> {
         },
         _ => Err(syn::Error::new(
             ty.span(),
-            "nonsupport function argument type",
+            "`prepare` nonsupport this kind of function argument type",
         )),
     }
 }
