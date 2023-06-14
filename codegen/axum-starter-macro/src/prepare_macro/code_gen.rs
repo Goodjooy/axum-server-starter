@@ -173,12 +173,17 @@ impl<'r> ToTokens for CodeGen<'r> {
             quote::quote! {
                 ::std::boxed::Box::pin(
                     async move {
+                        #execute_prepare
                         #mapped_func_call
                     }
                 )
             }
         } else {
-             mapped_func_call 
+            quote::quote!{
+                #execute_prepare
+                #mapped_func_call 
+
+            }
         };
 
         // ret type
@@ -188,17 +193,12 @@ impl<'r> ToTokens for CodeGen<'r> {
         };
 
         let ret_type = if *may_fall {
-            quote::quote!(
-                ::axum_starter::PrepareRet<#ret_type>
-            )
+            ret_type
         } else {
             quote::quote!(
-
-                ::axum_starter::PrepareRet<
-                    ::core::result::Result<
-                        #ret_type ,
-                        ::core::convert::Infallible
-                        >
+                ::core::result::Result<
+                    #ret_type ,
+                    ::core::convert::Infallible
                 >
             )
         };
@@ -236,7 +236,6 @@ impl<'r> ToTokens for CodeGen<'r> {
                 #(#impl_bounds)*
                 #extra_bounds
             {
-                #execute_prepare
                 #async_boxed
             }
         };
