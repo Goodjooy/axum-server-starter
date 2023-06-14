@@ -1,18 +1,20 @@
 use darling::ToTokens;
 
-use syn::{punctuated::Punctuated, Lifetime, Token, Type};
+use syn::{punctuated::Punctuated, Lifetime, Token, Type, Stmt};
 
-use super::inputs::input_fn::{GenericWithBound, InputFn};
+use super::inputs::input_fn::{GenericWithBound, InputFn, ArgInfo};
 
 pub struct CodeGen<'r> {
     call_async: bool,
     may_fall: bool,
     boxed: bool,
+
     prepare_name: &'r syn::Ident,
     prepare_generic: GenericWithBound<'r>,
     prepare_call: &'r syn::Ident,
 
-    call_args: Vec<&'r Type>,
+    call_args: Vec<ArgInfo<'r>>,
+    fn_body:&'r [Stmt],
     args_lifetime: Option<&'r Lifetime>,
     ret_type: Option<&'r Type>,
 }
@@ -29,6 +31,7 @@ impl<'r> CodeGen<'r> {
             args_type,
             generic,
             ret,
+            fn_body,
         }: InputFn<'r>,
     ) -> Self {
         Self {
@@ -41,6 +44,7 @@ impl<'r> CodeGen<'r> {
             boxed,
             may_fall,
             ret_type: ret,
+            fn_body,
         }
     }
 }
