@@ -96,7 +96,7 @@ pub struct GenericWithBound<'r> {
     /// type generic
     pub type_generic: Punctuated<&'r TypeParam, Token![,]>,
     pub const_generic: Punctuated<&'r ConstParam, Token![,]>,
-    origin: &'r Generics,
+    pub origin: &'r Generics,
 }
 
 impl<'r> GenericWithBound<'r> {
