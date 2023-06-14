@@ -1,5 +1,8 @@
+use std::marker::PhantomData;
+
 use darling::ToTokens;
 
+use quote::format_ident;
 use syn::{punctuated::Punctuated, Lifetime, Stmt, Token, Type};
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
@@ -116,6 +119,26 @@ impl<'r> ToTokens for CodeGen<'r> {
                 ::axum_starter::Provider::provide(::core::ops::Deref::deref(&config))
             }
         });
+        let inner_struct_name = format_ident!("__InnerArgsStruct");
+        let inner_struct = {
+            let (_, _, where_clause) = prepare_generic.origin.split_for_impl();
+            let ty_generic = prepare_generic.type_generic.iter();
+            let types = call_args.iter().map(|ArgInfo { ty, .. }| ty);
+            let phantom = prepare_generic.type_generic.iter();
+
+            quote::quote!(struct #inner_struct_name <#bound_lifetime, #(#ty_generic,)*> ( #(#types,)* core::marker::PhantomData<& #bound_lifetime (#(#phantom),*)> ) #where_clause;)
+        };
+
+        let construct_inner_struct = {
+            let ty_generic = prepare_generic.type_generic.iter();
+            quote::quote!(let args = #inner_struct_name::<#(#ty_generic),*>(#(#args_fetch,)* core::marker::PhantomData);)
+        };
+
+        let fetch_args = {
+            let pattens = call_args.iter().map(|ArgInfo { patten, .. }| patten);
+
+            quote::quote!(let #inner_struct_name(#(#pattens,)* _) = args;)
+        };
 
         let awaiting = if *call_async {
             Some(quote::quote!(.await))
@@ -123,22 +146,25 @@ impl<'r> ToTokens for CodeGen<'r> {
             None
         };
 
+        let execute_prepare = quote::quote! {
+            #inner_struct
+            #construct_inner_struct
+            #fetch_args
+        };
+
         let func_call = quote::quote! {
-            #prepare_call::<
-                #generic_set
-                >(
-                    #(
-                        #args_fetch
-                    ),*
-                )#awaiting
+            {
+                #(#fn_body)*
+            }
         };
 
         let mapped_func_call = if *may_fall {
             func_call
         } else {
             quote::quote!(
+                let ret = #func_call;
                 ::core::result::Result::Ok(
-                    #func_call
+                    ret
                 )
             )
         };
@@ -152,7 +178,7 @@ impl<'r> ToTokens for CodeGen<'r> {
                 )
             }
         } else {
-            mapped_func_call
+             mapped_func_call 
         };
 
         // ret type
@@ -167,6 +193,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             )
         } else {
             quote::quote!(
+
                 ::axum_starter::PrepareRet<
                     ::core::result::Result<
                         #ret_type ,
@@ -209,6 +236,7 @@ impl<'r> ToTokens for CodeGen<'r> {
                 #(#impl_bounds)*
                 #extra_bounds
             {
+                #execute_prepare
                 #async_boxed
             }
         };
