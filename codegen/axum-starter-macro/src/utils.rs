@@ -30,7 +30,7 @@ pub(crate) fn check_accept_args_type(ty: &Type) -> Result<(), syn::Error> {
         Type::Array(TypeArray { elem, .. })
         | Type::Ptr(TypePtr { elem, .. })
         | Type::Reference(TypeReference { elem, .. })
-        | Type::Slice(TypeSlice { elem, .. }) => check_accept_args_type(&elem),
+        | Type::Slice(TypeSlice { elem, .. }) => check_accept_args_type(elem),
 
         Type::Path(TypePath {
             path: Path { segments, .. },
@@ -57,12 +57,12 @@ pub(crate) fn check_accept_args_type(ty: &Type) -> Result<(), syn::Error> {
             }
             Ok(())
         }
-        Type::Tuple(TypeTuple{  elems ,..}) => {
-            for elem in elems{
+        Type::Tuple(TypeTuple { elems, .. }) => {
+            for elem in elems {
                 check_accept_args_type(elem)?;
             }
             Ok(())
-        },
+        }
         _ => Err(syn::Error::new(
             ty.span(),
             "`prepare` nonsupport this kind of function argument type",
