@@ -96,6 +96,7 @@ pub struct GenericWithBound<'r> {
     /// type generic
     pub type_generic: Punctuated<&'r TypeParam, Token![,]>,
     pub const_generic: Punctuated<&'r ConstParam, Token![,]>,
+    origin: &'r Generics,
 }
 
 impl<'r> GenericWithBound<'r> {
@@ -176,6 +177,7 @@ impl<'r> GenericWithBound<'r> {
         }
 
         let this = Self {
+            origin:generic,
             where_closure: where_bound,
             type_generic: generic.type_params().collect(),
             const_generic: generic.const_params().collect(),
