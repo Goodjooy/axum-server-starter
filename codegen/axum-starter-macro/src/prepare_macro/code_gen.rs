@@ -1,8 +1,8 @@
 use darling::ToTokens;
 
-use syn::{punctuated::Punctuated, Lifetime, Token, Type, Stmt};
+use syn::{punctuated::Punctuated, Lifetime, Stmt, Token, Type};
 
-use super::inputs::input_fn::{GenericWithBound, InputFn, ArgInfo};
+use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
     call_async: bool,
@@ -14,7 +14,7 @@ pub struct CodeGen<'r> {
     prepare_call: &'r syn::Ident,
 
     call_args: Vec<ArgInfo<'r>>,
-    fn_body:&'r [Stmt],
+    fn_body: &'r [Stmt],
     args_lifetime: Option<&'r Lifetime>,
     ret_type: Option<&'r Type>,
 }
@@ -61,6 +61,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             boxed,
             may_fall,
             ret_type,
+            fn_body,
         } = self;
 
         let bound_lifetime = match args_lifetime {
@@ -104,7 +105,7 @@ impl<'r> ToTokens for CodeGen<'r> {
 
         let extra_bounds = prepare_generic.where_closure.as_ref();
 
-        let impl_bounds = call_args.iter().map(|ty| {
+        let impl_bounds = call_args.iter().map(|ArgInfo { ty, .. }| {
             quote::quote! {
                 Config: for<#bound_lifetime> ::axum_starter::Provider<#bound_lifetime, #ty>,
             }
