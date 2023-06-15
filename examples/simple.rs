@@ -62,9 +62,8 @@ impl Configure {
 
 /// if need ref args ,adding a lifetime
 #[prepare(box ShowFoo 'arg)]
-fn show_foo<S>(f: &'arg S)
-where
-    S: AsRef<str> + ?Sized,
+fn show_foo<S: AsRef<str> + ?Sized>(f: &'arg S)
+
 {
     println!("this is Foo {}", f.as_ref())
 }
