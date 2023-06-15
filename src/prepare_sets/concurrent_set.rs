@@ -3,8 +3,8 @@ use std::any::type_name;
 use std::{future::IntoFuture, sync::Arc};
 
 use futures::{
-    future::{join, ok, Ready},
-    Future, FutureExt, TryFutureExt,
+    future::{join, ok},
+    FutureExt, TryFutureExt,
 };
 
 use crate::{
@@ -15,40 +15,34 @@ use crate::{
     PrepareError,
 };
 
+use super::{BoxFuture, StateContainerFuture, StateContainerResult};
+
 /// apply all [Prepare](Prepare) task concurrently
 ///
 /// ## Note
 /// the sync part of [Prepare] will be run immediately
-pub struct ConcurrentPrepareSet<C, PFut> {
-    prepare_fut: PFut,
+pub struct ConcurrentPrepareSet<C, T = StateContainerResult> {
+    prepare_fut: BoxFuture<T>,
     configure: Arc<C>,
 }
 
-impl<C, PFut> ConcurrentPrepareSet<C, PFut>
-where
-    PFut: Future<Output = Result<StateCollector, PrepareError>>,
-{
+impl<C> ConcurrentPrepareSet<C> {
     /// get the [Future]
-    pub(crate) fn into_internal_future(self) -> PFut {
+    pub(crate) fn into_internal_future(self) -> StateContainerFuture {
         self.prepare_fut
     }
 }
 
-impl<C, PFut> ConcurrentPrepareSet<C, PFut>
+impl<C> ConcurrentPrepareSet<C>
 where
-    PFut: Future<Output = Result<StateCollector, PrepareError>>,
-
     C: 'static,
 {
     /// join a [Prepare] into concurrent execute set
     ///
     /// concurrent only support state prepare
-    pub fn join_state<P>(
-        self,
-        prepare: P,
-    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>>
+    pub fn join_state<P>(self, prepare: P) -> ConcurrentPrepareSet<C>
     where
-        P: Prepare<C>,
+        P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
     {
         debug!(
@@ -73,7 +67,8 @@ where
 
                 states
             })
-        });
+        })
+        .boxed_local();
 
         ConcurrentPrepareSet {
             prepare_fut,
@@ -82,10 +77,10 @@ where
     }
 
     /// join a [Prepare] without effect
-    pub fn join<P: Prepare<C, Effect = ()>>(
-        self,
-        prepare: P,
-    ) -> ConcurrentPrepareSet<C, impl Future<Output = Result<StateCollector, PrepareError>>> {
+    pub fn join<P>(self, prepare: P) -> ConcurrentPrepareSet<C>
+    where
+        P: Prepare<C, Effect = ()> + 'static,
+    {
         debug!(
             mode = "concurrently",
             action = "Adding Prepare",
@@ -103,7 +98,8 @@ where
         .map(|(l, r)| {
             r?;
             l
-        });
+        })
+        .boxed_local();
 
         ConcurrentPrepareSet {
             prepare_fut,
@@ -112,10 +108,10 @@ where
     }
 }
 
-impl<C: 'static> ConcurrentPrepareSet<C, Ready<Result<StateCollector, PrepareError>>> {
+impl<C: 'static> ConcurrentPrepareSet<C> {
     pub(crate) fn new(configure: Arc<C>) -> Self {
         Self {
-            prepare_fut: ok(StateCollector::new()),
+            prepare_fut: ok(StateCollector::new()).boxed_local(),
             configure,
         }
     }
