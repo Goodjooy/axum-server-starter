@@ -2,15 +2,30 @@ use std::ops::Deref;
 
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, PatType, PredicateType, Token, Type, TypeParam, WherePredicate,
+    LifetimeDef, Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam, WherePredicate,
 };
 
+use crate::utils::check_accept_args_type;
+
+pub struct ArgInfo<'r> {
+    pub patten: &'r Pat,
+    pub ty: &'r Type,
+}
+
+impl<'r> ArgInfo<'r> {
+    fn new(pat_type: &'r PatType) -> Self {
+        Self {
+            patten: &pat_type.pat,
+            ty: &pat_type.ty,
+        }
+    }
+}
+
 pub struct InputFn<'r> {
-    pub is_async: bool,
-    pub fn_name: &'r syn::Ident,
     pub generic: GenericWithBound<'r>,
-    pub args_type: Vec<&'r syn::Type>,
+    pub args_type: Vec<ArgInfo<'r>>,
     pub ret: Option<&'r Type>,
+    pub fn_body: &'r [Stmt],
 }
 
 impl<'r> InputFn<'r> {
@@ -44,24 +59,29 @@ impl<'r> InputFn<'r> {
             ))?;
         }
 
+        for arg_types in sig.inputs.iter() {
+            if let FnArg::Typed(PatType { ty, .. }) = arg_types {
+                check_accept_args_type(ty)?;
+            }
+        }
+
         let generic = GenericWithBound::new(&sig.generics, lifetime)?;
         let ret = match sig.output {
             syn::ReturnType::Default => None,
             syn::ReturnType::Type(_, ref ty) => Some(ty.deref()),
         };
         Ok(Self {
-            is_async: sig.asyncness.is_some(),
-            fn_name: &sig.ident,
             args_type: sig
                 .inputs
                 .iter()
                 .filter_map(|input| match input {
                     FnArg::Receiver(_) => None,
-                    FnArg::Typed(PatType { ty, .. }) => Some(ty.as_ref()),
+                    FnArg::Typed(pat_type) => Some(ArgInfo::new(pat_type)),
                 })
                 .collect(),
             generic,
             ret,
+            fn_body: item.block.stmts.as_slice(),
         })
     }
 }
@@ -72,6 +92,7 @@ pub struct GenericWithBound<'r> {
     /// type generic
     pub type_generic: Punctuated<&'r TypeParam, Token![,]>,
     pub const_generic: Punctuated<&'r ConstParam, Token![,]>,
+    pub origin: &'r Generics,
 }
 
 impl<'r> GenericWithBound<'r> {
@@ -152,6 +173,7 @@ impl<'r> GenericWithBound<'r> {
         }
 
         let this = Self {
+            origin: generic,
             where_closure: where_bound,
             type_generic: generic.type_params().collect(),
             const_generic: generic.const_params().collect(),
