@@ -93,13 +93,13 @@ impl<'r> ToTokens for CodeGen<'r> {
             let (_, _, where_clause) = prepare_generic.origin.split_for_impl();
             let ty_generic = prepare_generic.type_generic.iter();
             let types = call_args.iter().map(|ArgInfo { ty, .. }| ty);
-            let phantom = prepare_generic.type_generic.iter().map(|tp|&tp.ident);
+            let phantom = prepare_generic.type_generic.iter().map(|tp| &tp.ident);
 
             quote::quote!(struct #inner_struct_name <#bound_lifetime, #(#ty_generic,)*> ( #(#types,)* core::marker::PhantomData<& #bound_lifetime (#(#phantom),*)> ) #where_clause;)
         };
 
         let construct_inner_struct = {
-            let ty_generic = prepare_generic.type_generic.iter().map(|tp|&tp.ident);
+            let ty_generic = prepare_generic.type_generic.iter().map(|tp| &tp.ident);
             quote::quote!(let args = #inner_struct_name::<#(#ty_generic),*>(#(#args_fetch,)* core::marker::PhantomData);)
         };
 
