@@ -2,10 +2,10 @@ use std::error;
 use std::fmt::Display;
 use std::net::SocketAddr;
 
-use hyper::Server;
 use hyper::server::accept::Accept;
-use hyper::server::Builder;
 use hyper::server::conn::AddrIncoming;
+use hyper::server::Builder;
+use hyper::Server;
 
 /// binding to any kind of income stream
 ///
@@ -38,7 +38,10 @@ pub trait ServeAddress {
     fn get_address(&self) -> Self::Address;
 }
 
-impl<T> BindServe for T where T: ServeAddress {
+impl<T> BindServe for T
+where
+    T: ServeAddress,
+{
     type A = AddrIncoming;
     type Target = SocketAddr;
 
@@ -48,8 +51,7 @@ impl<T> BindServe for T where T: ServeAddress {
 
     fn create_listener(&self) -> Self::A {
         let addr = &self.get_address().into();
-        AddrIncoming::bind(addr)
-            .unwrap_or_else(|e| panic!("error bind to {addr} {e}"))
+        AddrIncoming::bind(addr).unwrap_or_else(|e| panic!("error bind to {addr} {e}"))
     }
 }
 
@@ -65,11 +67,10 @@ pub trait LoggerInitialization {
 
 /// change the server configure
 pub trait ConfigureServerEffect<A = AddrIncoming>
-    where A: Accept {
-    fn effect_server(
-        &self,
-        server: Builder<A>,
-    ) -> Builder<A> {
+where
+    A: Accept,
+{
+    fn effect_server(&self, server: Builder<A>) -> Builder<A> {
         server
     }
 }

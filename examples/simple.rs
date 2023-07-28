@@ -149,7 +149,9 @@ fn on_fly_state() -> InFlight {
 
     tokio::spawn(async move {
         loop {
-            let Some(data) = receive.recv().await else{break;};
+            let Some(data) = receive.recv().await else {
+                break;
+            };
 
             sender2.send(data).ok();
         }

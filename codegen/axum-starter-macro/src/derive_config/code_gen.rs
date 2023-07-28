@@ -10,8 +10,8 @@ pub struct ImplAddress<'r> {
     associate_fetcher: bool,
 }
 
-impl<'r> From<(&'r Address,&'r syn::Ident)> for ImplAddress<'r> {
-    fn from((input,ident):(&'r Address,&'r syn::Ident)) -> Self {
+impl<'r> From<(&'r Address, &'r syn::Ident)> for ImplAddress<'r> {
+    fn from((input, ident): (&'r Address, &'r syn::Ident)) -> Self {
         let (ty, fetcher, ass) = match input {
             Address::Provide(Override::Explicit(Provider { ref ty })) => (Some(ty), None, false),
             Address::Provide(Override::Inherit) => (None, None, false),
@@ -89,7 +89,14 @@ pub struct ImplInitLog<'r> {
 
 impl<'r> From<&'r DeriveInput> for Option<ImplInitLog<'r>> {
     fn from(input: &'r DeriveInput) -> Self {
-        let Some(Logger{ func, error, associate }) = input.logger.as_ref() else {return  None;};
+        let Some(Logger {
+            func,
+            error,
+            associate,
+        }) = input.logger.as_ref()
+        else {
+            return None;
+        };
 
         Some(ImplInitLog {
             ident: &input.ident,

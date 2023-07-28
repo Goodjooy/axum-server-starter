@@ -1,12 +1,10 @@
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
 use std::marker::PhantomPinned;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::pin::Pin;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 use std::task::{Context, Poll};
 
 use axum::{
@@ -21,26 +19,30 @@ use hyper::server::conn::AddrIncoming;
 use log::{info, Level};
 use tokio::signal::ctrl_c;
 
-use axum_starter::{BindServe, FromStateCollector, prepare, PrepareRouteEffect, PrepareStateEffect, Provider, router::Route, ServerPrepare, state::AddState, StateCollector, TypeNotInState};
+use axum_starter::{
+    prepare, router::Route, state::AddState, BindServe, FromStateCollector, PrepareRouteEffect,
+    PrepareStateEffect, Provider, ServerPrepare, StateCollector, TypeNotInState,
+};
 
 #[tokio::main]
 async fn main() {
     ServerPrepare::with_config(Config {
         id: 11,
         name: "Str".to_string(),
-    }).init_logger()
-        .unwrap_or_else(|e|panic!("init logger panic :{e}"))
-        .prepare(Student)
-        .prepare_state(EchoState)
-        .prepare_route(Echo)
-        .graceful_shutdown(ctrl_c().map(|_| ()))
-        .convert_state::<MyState>()
-        .preparing()
-        .await
-        .expect("")
-        .launch()
-        .await
-        .expect("");
+    })
+    .init_logger()
+    .unwrap_or_else(|e| panic!("init logger panic :{e}"))
+    .prepare(Student)
+    .prepare_state(EchoState)
+    .prepare_route(Echo)
+    .graceful_shutdown(ctrl_c().map(|_| ()))
+    .convert_state::<MyState>()
+    .preparing()
+    .await
+    .expect("")
+    .launch()
+    .await
+    .expect("");
 }
 
 #[derive(Debug, Clone)]
@@ -74,10 +76,10 @@ fn echo_count() -> impl PrepareStateEffect {
 
 #[prepare(Echo)]
 fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
-    where
-        B: http_body::Body + Send + 'static,
-        S: Clone + Send + Sync + 'static,
-        Arc<AtomicUsize>: FromRef<S>,
+where
+    B: http_body::Body + Send + 'static,
+    S: Clone + Send + Sync + 'static,
+    Arc<AtomicUsize>: FromRef<S>,
 {
     (
         Route::new(
@@ -94,10 +96,14 @@ fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
     )
 }
 
-#[derive(Debug, Provider,Configure)]
+#[derive(Debug, Provider, Configure)]
 #[conf(
-logger(error = "log::SetLoggerError", func = "||simple_logger::init_with_level(Level::Info)",associate),
-server
+    logger(
+        error = "log::SetLoggerError",
+        func = "||simple_logger::init_with_level(Level::Info)",
+        associate
+    ),
+    server
 )]
 pub struct Config {
     #[provider(transparent)]
@@ -118,9 +124,8 @@ impl BindServe for Config {
         LogIpAddrIncome(
             AddrIncoming::bind(&self.listen_target())
                 .unwrap_or_else(|e| panic!("can not bind to {} {e}", self.listen_target())),
-            PhantomPinned
+            PhantomPinned,
         )
-
     }
 }
 
@@ -130,15 +135,18 @@ impl Accept for LogIpAddrIncome {
     type Conn = <AddrIncoming as Accept>::Conn;
     type Error = <AddrIncoming as Accept>::Error;
 
-    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+    fn poll_accept(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let income = unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().0) };
         match income.poll_accept(cx) {
             Poll::Ready(Some(Ok(conn))) => {
-                info!("income Ip is {}",conn.remote_addr());
+                info!("income Ip is {}", conn.remote_addr());
                 Poll::Ready(Some(Ok(conn)))
             }
 
-            poll => poll
+            poll => poll,
         }
     }
 }
