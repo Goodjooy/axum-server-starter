@@ -13,7 +13,7 @@ use axum::{
     extract::{FromRef, Path, State},
     routing::get,
 };
-use axum_starter_macro::Configure;
+
 use futures::FutureExt;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
