@@ -1,5 +1,6 @@
 use tower::layer::util::Stack;
 
+use crate::server_prepare::PrepareDecorator;
 use crate::{
     prepare_behave::effect_traits::{
         Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect,
@@ -7,12 +8,17 @@ use crate::{
     prepare_sets::ContainerResult,
     ConcurrentPrepareSet, ServerPrepare,
 };
-use crate::server_prepare::PrepareDecorator;
 
-type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful,Decorator> =
-    ServerPrepare<C, ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>, Log, State, Graceful,Decorator>;
+type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator> = ServerPrepare<
+    C,
+    ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>,
+    Log,
+    State,
+    Graceful,
+    Decorator,
+>;
 
-type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator> = ServerPrepare<
+type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful, Decorator> = ServerPrepare<
     C,
     ContainerResult<
         Ri,
@@ -20,13 +26,14 @@ type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator
     >,
     Log,
     State,
-    Graceful,Decorator
+    Graceful,
+    Decorator,
 >;
 
-impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static,Decorator>
-    ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
-
-where Decorator:PrepareDecorator
+impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static, Decorator>
+    ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
+where
+    Decorator: PrepareDecorator,
 {
     /// adding a set of [Prepare] executing concurrently
     ///
@@ -36,9 +43,10 @@ where Decorator:PrepareDecorator
     pub fn prepare_concurrent<F>(
         self,
         concurrent: F,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
     where
-        F: FnOnce(ConcurrentPrepareSet<C,Decorator>) -> ConcurrentPrepareSet<C,Decorator> + 'static,
+        F: FnOnce(ConcurrentPrepareSet<C, Decorator>) -> ConcurrentPrepareSet<C, Decorator>
+            + 'static,
     {
         let prepares = self.span.in_scope(|| {
             debug!(mode = "Concurrent", action = "Add Prepare");
@@ -58,7 +66,7 @@ where Decorator:PrepareDecorator
     pub fn prepare_route<P, B, S>(
         self,
         prepare: P,
-    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful,Decorator>
+    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S, B>,
@@ -87,7 +95,7 @@ where Decorator:PrepareDecorator
     pub fn prepare_state<P>(
         self,
         prepare: P,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
@@ -114,7 +122,7 @@ where Decorator:PrepareDecorator
     pub fn prepare_middleware<S, P>(
         self,
         prepare: P,
-    ) -> ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator>
+    ) -> ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful, Decorator>
     where
         S: 'static,
         P: Prepare<C> + 'static,
@@ -136,7 +144,7 @@ where Decorator:PrepareDecorator
     pub fn prepare<P>(
         self,
         prepare: P,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
     where
         P: Prepare<C, Effect = ()> + 'static,
     {

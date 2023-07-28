@@ -1,3 +1,5 @@
+use std::any::type_name;
+use std::future::Future;
 use std::{
     convert::Infallible,
     fmt::Debug,
@@ -5,8 +7,6 @@ use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     time::Duration,
 };
-use std::any::type_name;
-use std::future::Future;
 
 use axum::{
     extract::{FromRef, OriginalUri, Path, State},
@@ -14,15 +14,20 @@ use axum::{
     Router,
 };
 
-use axum_starter::{prepare, router::{Fallback, Nest, Route}, Configure, PrepareMiddlewareEffect, PrepareRouteEffect, Provider, ServerPrepare, PrepareDecorator, PrepareError};
+use axum_starter::{
+    prepare,
+    router::{Fallback, Nest, Route},
+    Configure, PrepareDecorator, PrepareError, PrepareMiddlewareEffect, PrepareRouteEffect,
+    Provider, ServerPrepare,
+};
 use axum_starter_macro::FromStateCollector;
 use futures::FutureExt;
 use hyper::Body;
 use tokio::sync::{mpsc, watch};
 
-use std::slice::Iter;
 use futures::future::LocalBoxFuture;
 use log::info;
+use std::slice::Iter;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
@@ -222,11 +227,18 @@ struct Decorator;
 impl PrepareDecorator for Decorator {
     type OutFut<'fut, Fut, T> = LocalBoxFuture<'fut, Result<T, PrepareError>> where Fut: Future<Output=Result<T, PrepareError>> + 'fut, T: 'static;
 
-    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T> where Fut: Future<Output=Result<T, PrepareError>> + 'fut, T: 'static {
+    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
+    where
+        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        T: 'static,
+    {
         Box::pin(async {
             match in_fut.await {
-                Ok(ret) => {info!("prepare ret type is {}",type_name::<T>()); Ok(ret)},
-                err @ Err(_) => err
+                Ok(ret) => {
+                    info!("prepare ret type is {}", type_name::<T>());
+                    Ok(ret)
+                }
+                err @ Err(_) => err,
             }
         })
     }

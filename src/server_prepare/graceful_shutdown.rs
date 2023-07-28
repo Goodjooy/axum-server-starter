@@ -29,12 +29,14 @@ impl FetchGraceful for NoGraceful {
     }
 }
 
-impl<C, FutEffect, Log, State,Decorator> ServerPrepare<C, FutEffect, Log, State, NoGraceful,Decorator> {
+impl<C, FutEffect, Log, State, Decorator>
+    ServerPrepare<C, FutEffect, Log, State, NoGraceful, Decorator>
+{
     /// set the graceful shutdown signal
     pub fn graceful_shutdown<Fut>(
         self,
         future: Fut,
-    ) -> ServerPrepare<C, FutEffect, Log, State, Graceful<Fut>,Decorator>
+    ) -> ServerPrepare<C, FutEffect, Log, State, Graceful<Fut>, Decorator>
     where
         Fut: Future<Output = ()>,
     {

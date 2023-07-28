@@ -1,13 +1,15 @@
 use tower::layer::util::Stack;
 
-use crate::{prepare_sets::ContainerResult, ServerPrepare};
 use crate::server_prepare::PrepareDecorator;
+use crate::{prepare_sets::ContainerResult, ServerPrepare};
 
-type MiddlewareLayerRet<C, R, M, L, Log, State, Graceful, Decorator> = ServerPrepare<C, ContainerResult<R, Stack<M, L>>, Log, State, Graceful, Decorator>;
+type MiddlewareLayerRet<C, R, M, L, Log, State, Graceful, Decorator> =
+    ServerPrepare<C, ContainerResult<R, Stack<M, L>>, Log, State, Graceful, Decorator>;
 
 impl<C: 'static, Log, State, Graceful, R: 'static, L: 'static, Decorator>
-ServerPrepare<C, ContainerResult<R, L>, Log, State, Graceful, Decorator>
-where Decorator:PrepareDecorator
+    ServerPrepare<C, ContainerResult<R, L>, Log, State, Graceful, Decorator>
+where
+    Decorator: PrepareDecorator,
 {
     /// adding middleware without previously [Prepare](crate::Prepare) action
     pub fn layer<M: 'static>(

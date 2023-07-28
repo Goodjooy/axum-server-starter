@@ -3,10 +3,10 @@ use std::fmt::Display;
 use std::future::Future;
 use std::net::SocketAddr;
 
-use hyper::Server;
 use hyper::server::accept::Accept;
-use hyper::server::Builder;
 use hyper::server::conn::AddrIncoming;
+use hyper::server::Builder;
+use hyper::Server;
 
 use crate::PrepareError;
 
@@ -42,8 +42,8 @@ pub trait ServeAddress {
 }
 
 impl<T> BindServe for T
-    where
-        T: ServeAddress,
+where
+    T: ServeAddress,
 {
     type A = AddrIncoming;
     type Target = SocketAddr;
@@ -70,8 +70,8 @@ pub trait LoggerInitialization {
 
 /// change the server configure
 pub trait ConfigureServerEffect<A = AddrIncoming>
-    where
-        A: Accept,
+where
+    A: Accept,
 {
     fn effect_server(&self, server: Builder<A>) -> Builder<A> {
         server
@@ -84,16 +84,16 @@ pub trait ConfigureServerEffect<A = AddrIncoming>
 ///
 ///## NOTE
 ///this feature is **NOT** available yet
-pub trait PrepareDecorator :'static{
-    type OutFut<'fut, Fut, T>: Future<Output=Result<T, PrepareError>> + 'fut
-        where Fut: Future<Output=Result<T, PrepareError>> + 'fut ,
-              T: 'static
-    ;
+pub trait PrepareDecorator: 'static {
+    type OutFut<'fut, Fut, T>: Future<Output = Result<T, PrepareError>> + 'fut
+    where
+        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        T: 'static;
 
     fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
-        where Fut: Future<Output=Result<T, PrepareError>> + 'fut ,
-              T: 'static
-    ;
+    where
+        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        T: 'static;
 }
 
 /// Default Decorator without any effect
@@ -104,8 +104,10 @@ impl PrepareDecorator for EmptyDecorator {
         where Fut: Future<Output=Result<T, PrepareError>> + 'fut  ,T: 'static;
 
     fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
-        where Fut: Future<Output=Result<T, PrepareError>> + 'fut , T: 'static {
+    where
+        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        T: 'static,
+    {
         in_fut
     }
 }
-

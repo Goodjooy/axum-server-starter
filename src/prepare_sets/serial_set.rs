@@ -1,21 +1,21 @@
+use std::marker::PhantomData;
 #[allow(unused_imports)]
 use std::{any::type_name, mem::size_of_val};
 use std::{future::IntoFuture, sync::Arc};
-use std::marker::PhantomData;
 
 use futures::{future::ok, FutureExt, TryFutureExt};
 use http_body::Body;
 use tap::Pipe;
 use tower::layer::util::{Identity, Stack};
 
+use crate::server_prepare::PrepareDecorator;
 use crate::{
-    ConcurrentPrepareSet,
     prepare_behave::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
         EffectContainer,
-    }, PrepareError,
+    },
+    ConcurrentPrepareSet, PrepareError,
 };
-use crate::server_prepare::PrepareDecorator;
 
 use super::{BoxFuture, ContainerFuture, ContainerResult};
 
@@ -57,14 +57,15 @@ type MiddlewareContainerResult<R, L, P, S, C> = ContainerResult<
     Stack<<<P as Prepare<C>>::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>,
 >;
 
-type ThenRouterPrepareRet<C, P, R, L, Decorator> = SerialPrepareSet<C, ContainerResult<(<P as Prepare<C>>::Effect, R), L>, Decorator>;
+type ThenRouterPrepareRet<C, P, R, L, Decorator> =
+    SerialPrepareSet<C, ContainerResult<(<P as Prepare<C>>::Effect, R), L>, Decorator>;
 
 impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
-    where
-        C: 'static,
-        R: 'static,
-        L: 'static,
-        Decorator: PrepareDecorator
+where
+    C: 'static,
+    R: 'static,
+    L: 'static,
+    Decorator: PrepareDecorator,
 {
     /// add a [Prepare] into serially executing set
     ///
@@ -73,13 +74,13 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
         self,
         prepare: P,
     ) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
-        where
-            P: Prepare<C> + 'static,
-            P::Effect: PrepareRouteEffect<S, B>,
-            P::Error: 'static,
-            R: PrepareRouteEffect<S, B>,
-            B: Body + Send + 'static,
-            S: Clone + Send + 'static + Sync,
+    where
+        P: Prepare<C> + 'static,
+        P::Effect: PrepareRouteEffect<S, B>,
+        P::Error: 'static,
+        R: PrepareRouteEffect<S, B>,
+        B: Body + Send + 'static,
+        S: Clone + Send + 'static + Sync,
     {
         debug!(
             mode = "serially",
@@ -104,10 +105,13 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareStateEffect]
-    pub(crate) fn then_state<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
-        where
-            P: Prepare<C> + 'static,
-            P::Effect: PrepareStateEffect,
+    pub(crate) fn then_state<P>(
+        self,
+        prepare: P,
+    ) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
+    where
+        P: Prepare<C> + 'static,
+        P::Effect: PrepareStateEffect,
     {
         debug!(
             mode = "serially",
@@ -135,10 +139,10 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
         self,
         prepare: P,
     ) -> SerialPrepareSet<C, MiddlewareContainerResult<R, L, P, S, C>, Decorator>
-        where
-            S: 'static,
-            P: Prepare<C> + 'static,
-            P::Effect: PrepareMiddlewareEffect<S>,
+    where
+        S: 'static,
+        P: Prepare<C> + 'static,
+        P::Effect: PrepareMiddlewareEffect<S>,
     {
         debug!(
             mode = "serially",
@@ -150,7 +154,9 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_middleware::<Decorator, _, _, _>(prepare, configure))
+            .and_then(|collector| {
+                collector.then_middleware::<Decorator, _, _, _>(prepare, configure)
+            })
             .boxed_local();
 
         SerialPrepareSet {
@@ -163,8 +169,8 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
     ///
     /// without Effect
     pub(crate) fn then<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
-        where
-            P: Prepare<C, Effect=()> + 'static,
+    where
+        P: Prepare<C, Effect = ()> + 'static,
     {
         debug!(
             mode = "serially",
@@ -181,9 +187,8 @@ impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
                     .prepare(configure)
                     .into_future()
                     .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
-                        .pipe(Decorator::decorator)
+                    .pipe(Decorator::decorator)
                     .map_ok(|_| collect)
-
             })
             .boxed_local();
 

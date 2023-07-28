@@ -18,8 +18,8 @@ pub use prepare_behave::effect_traits::{
     FalliblePrepare, Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect,
 };
 pub use server_prepare::{
-    BindServe, ConfigureServerEffect, LoggerInitialization, PrepareError, PrepareStartError,
-    ServeAddress, ServerPrepare,PrepareDecorator
+    BindServe, ConfigureServerEffect, LoggerInitialization, PrepareDecorator, PrepareError,
+    PrepareStartError, ServeAddress, ServerPrepare,
 };
 pub use server_ready::ServerReady;
 
