@@ -13,14 +13,15 @@ use axum::{
     extract::{FromRef, Path, State},
     routing::get,
 };
+use axum_starter_macro::Configure;
 
 use futures::FutureExt;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
-use log::{info, Level, log};
+use log::{info, Level};
 use tokio::signal::ctrl_c;
 
-use axum_starter::{BindServe, ConfigureServerEffect, FromStateCollector, LoggerInitialization, prepare, PrepareRouteEffect, PrepareStateEffect, Provider, router::Route, ServerPrepare, state::AddState, StateCollector, TypeNotInState};
+use axum_starter::{BindServe, FromStateCollector, prepare, PrepareRouteEffect, PrepareStateEffect, Provider, router::Route, ServerPrepare, state::AddState, StateCollector, TypeNotInState};
 
 #[tokio::main]
 async fn main() {
@@ -93,25 +94,17 @@ fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
     )
 }
 
-#[derive(Debug, Provider)]
-// #[conf(
-// logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
-// server
-// )]
+#[derive(Debug, Provider,Configure)]
+#[conf(
+logger(error = "log::SetLoggerError", func = "||simple_logger::init_with_level(Level::Info)",associate),
+server
+)]
 pub struct Config {
     #[provider(transparent)]
     id: i32,
     #[provider(transparent, ref)]
     name: String,
 }
-
-impl LoggerInitialization for Config { type Error = log::SetLoggerError;
-    fn init_logger(&self) -> Result<(), Self::Error> {
-        simple_logger::init_with_level(Level::Info)
-    } }
-
-
-impl<A:Accept> ConfigureServerEffect<A> for Config {}
 
 impl BindServe for Config {
     type A = LogIpAddrIncome;
