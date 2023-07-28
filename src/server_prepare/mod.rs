@@ -107,7 +107,7 @@ ServerPrepare<C, ContainerResult<R, L>, Log, StateReady<State>, Graceful>
 {
     /// prepare to start this server
     ///
-    /// this will consume `Self` then return [ServerReady](crate::ServerReady)
+    /// using [`ServerPrepare::preparing`]
     #[deprecated]
     pub async fn prepare_start<NewResBody>(
         self,
