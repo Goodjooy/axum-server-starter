@@ -1,25 +1,26 @@
-#[allow(unused_imports)]
-use std::any::type_name;
 use std::{
     convert::Infallible,
     marker::{PhantomData, Send},
     sync::Arc,
 };
+#[allow(unused_imports)]
+use std::any::type_name;
 
-use axum::{body::Bytes, routing::Route, BoxError, Router};
+use axum::{body::Bytes, BoxError, Router, routing::Route};
 use futures::Future;
-use hyper::server::accept::Accept;
 use hyper::{Body, Request, Response};
+use hyper::server::accept::Accept;
 use tap::Pipe;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
+use tower::{Layer, layer::util::Identity, Service, ServiceBuilder};
 
 use crate::{
     prepare_behave::{effect_traits::PrepareRouteEffect, FromStateCollector},
     prepare_sets::ContainerResult,
-    server_ready::ServerReady,
     SerialPrepareSet,
+    server_ready::ServerReady,
 };
+use crate::server_prepare::configure::{EmptyDecorator, PrepareDecorator};
 
 pub use self::{
     configure::{BindServe, ConfigureServerEffect, LoggerInitialization, ServeAddress},
@@ -43,17 +44,17 @@ pub struct NoLog;
 pub struct LogInit;
 
 /// type for prepare starting
-pub struct ServerPrepare<C, Effect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful> {
+pub struct ServerPrepare<C, Effect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful, Decorator = EmptyDecorator> {
     prepares: SerialPrepareSet<C, Effect>,
     graceful: Graceful,
     #[cfg(feature = "logger")]
     span: tracing::Span,
     #[cfg(not(feature = "logger"))]
     span: crate::fake_span::FakeSpan,
-    _phantom: PhantomData<(Log, State)>,
+    _phantom: PhantomData<(Log, State, Decorator)>,
 }
 
-impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State, Graceful> {
+impl<C, FutEffect, Log, State, Graceful, Decorator> ServerPrepare<C, FutEffect, Log, State, Graceful, Decorator> {
     fn new(
         prepares: SerialPrepareSet<C, FutEffect>,
         graceful: Graceful,
@@ -69,9 +70,9 @@ impl<C, FutEffect, Log, State, Graceful> ServerPrepare<C, FutEffect, Log, State,
     }
 }
 
-impl<C, FutEffect, State, Graceful> ServerPrepare<C, FutEffect, NoLog, State, Graceful>
-where
-    C: LoggerInitialization,
+impl<C, FutEffect, State, Graceful, Decorator> ServerPrepare<C, FutEffect, NoLog, State, Graceful, Decorator>
+    where
+        C: LoggerInitialization,
 {
     /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(
@@ -87,19 +88,19 @@ where
     }
 }
 
-impl<C: 'static> ServerPrepare<C, ContainerResult<(), Identity>, NoLog, StateNotReady, NoGraceful> {
+impl<C: 'static> ServerPrepare<C, ContainerResult<(), Identity>, NoLog, StateNotReady, NoGraceful, EmptyDecorator> {
     /// prepare staring the service with config
     pub fn with_config(config: C) -> Self {
         #[cfg(feature = "logger")]
-        let span = tracing::debug_span!("prepare server start");
+            let span = tracing::debug_span!("prepare server start");
         #[cfg(not(feature = "logger"))]
-        let span = crate::fake_span::FakeSpan;
+            let span = crate::fake_span::FakeSpan;
         ServerPrepare::new(SerialPrepareSet::new(Arc::new(config)), NoGraceful, span)
     }
 }
 
-impl<C: 'static, Log, State, Graceful, R, L>
-    ServerPrepare<C, ContainerResult<R, L>, Log, StateReady<State>, Graceful>
+impl<C: 'static, Log, State, Graceful, R, L, Decorator>
+ServerPrepare<C, ContainerResult<R, L>, Log, StateReady<State>, Graceful, Decorator>
 {
     /// prepare to start this server
     ///
@@ -109,33 +110,33 @@ impl<C: 'static, Log, State, Graceful, R, L>
         self,
     ) -> Result<
         ServerReady<
-            impl Future<Output = Result<(), hyper::Error>>,
-            impl Future<Output = Result<(), hyper::Error>>,
+            impl Future<Output=Result<(), hyper::Error>>,
+            impl Future<Output=Result<(), hyper::Error>>,
         >,
         PrepareStartError,
     >
-    where
+        where
         // config
-        C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
-        <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
-        <C::A as Accept>::Error: Send + Sync + std::error::Error,
+            C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
+            <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
+            <C::A as Accept>::Error: Send + Sync + std::error::Error,
         // middleware
-        L: Send + 'static,
-        ServiceBuilder<L>: Layer<Route> + Clone,
-        <ServiceBuilder<L> as Layer<Route>>::Service: Send
+            L: Send + 'static,
+            ServiceBuilder<L>: Layer<Route> + Clone,
+            <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
-            + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
+            + Service<Request<Body>, Response=Response<NewResBody>, Error=Infallible>
             + 'static,
-        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
-        NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
+            <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+            NewResBody: http_body::Body<Data=Bytes> + Send + 'static,
+            NewResBody::Error: Into<BoxError>,
         // prepare task
-        R: PrepareRouteEffect<State, Body>,
+            R: PrepareRouteEffect<State, Body>,
         // state
-        State: FromStateCollector,
-        State: Clone + Send + 'static + Sync,
+            State: FromStateCollector,
+            State: Clone + Send + 'static + Sync,
         // graceful
-        Graceful: FetchGraceful,
+            Graceful: FetchGraceful,
     {
         self.preparing().await
     }
@@ -146,33 +147,33 @@ impl<C: 'static, Log, State, Graceful, R, L>
         self,
     ) -> Result<
         ServerReady<
-            impl Future<Output = Result<(), hyper::Error>>,
-            impl Future<Output = Result<(), hyper::Error>>,
+            impl Future<Output=Result<(), hyper::Error>>,
+            impl Future<Output=Result<(), hyper::Error>>,
         >,
         PrepareStartError,
     >
-    where
+        where
         // config
-        C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
-        <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
-        <C::A as Accept>::Error: Send + Sync + std::error::Error,
+            C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
+            <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
+            <C::A as Accept>::Error: Send + Sync + std::error::Error,
         // middleware
-        L: Send + 'static,
-        ServiceBuilder<L>: Layer<Route> + Clone,
-        <ServiceBuilder<L> as Layer<Route>>::Service: Send
+            L: Send + 'static,
+            ServiceBuilder<L>: Layer<Route> + Clone,
+            <ServiceBuilder<L> as Layer<Route>>::Service: Send
             + Clone
-            + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
+            + Service<Request<Body>, Response=Response<NewResBody>, Error=Infallible>
             + 'static,
-        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
-        NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
+            <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+            NewResBody: http_body::Body<Data=Bytes> + Send + 'static,
+            NewResBody::Error: Into<BoxError>,
         // prepare task
-        R: PrepareRouteEffect<State, Body>,
+            R: PrepareRouteEffect<State, Body>,
         // state
-        State: FromStateCollector,
-        State: Clone + Send + 'static + Sync,
+            State: FromStateCollector,
+            State: Clone + Send + 'static + Sync,
         // graceful
-        Graceful: FetchGraceful,
+            Graceful: FetchGraceful,
     {
         async {
             let (prepare_fut, configure) = self.prepares.unwrap();
@@ -211,16 +212,16 @@ impl<C: 'static, Log, State, Graceful, R, L>
                 None => ServerReady::Server(server),
             })
         }
-        .pipe(|fut| {
-            #[cfg(feature = "logger")]
-            {
-                tracing::Instrument::instrument(fut, self.span)
-            }
-            #[cfg(not(feature = "logger"))]
-            {
-                fut
-            }
-        })
-        .await
+            .pipe(|fut| {
+                #[cfg(feature = "logger")]
+                {
+                    tracing::Instrument::instrument(fut, self.span)
+                }
+                #[cfg(not(feature = "logger"))]
+                {
+                    fut
+                }
+            })
+            .await
     }
 }

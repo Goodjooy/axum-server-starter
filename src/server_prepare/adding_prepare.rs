@@ -8,10 +8,10 @@ use crate::{
     ConcurrentPrepareSet, ServerPrepare,
 };
 
-type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful> =
-    ServerPrepare<C, ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>, Log, State, Graceful>;
+type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful,Decorator> =
+    ServerPrepare<C, ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>, Log, State, Graceful,Decorator>;
 
-type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful> = ServerPrepare<
+type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator> = ServerPrepare<
     C,
     ContainerResult<
         Ri,
@@ -19,11 +19,11 @@ type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful> = Server
     >,
     Log,
     State,
-    Graceful,
+    Graceful,Decorator
 >;
 
-impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
-    ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful>
+impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static,Decorator>
+    ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
 {
     /// adding a set of [Prepare] executing concurrently
     ///
@@ -33,7 +33,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_concurrent<F>(
         self,
         concurrent: F,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
     where
         F: FnOnce(ConcurrentPrepareSet<C>) -> ConcurrentPrepareSet<C> + 'static,
     {
@@ -55,7 +55,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_route<P, B, S>(
         self,
         prepare: P,
-    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful>
+    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful,Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S, B>,
@@ -84,7 +84,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_state<P>(
         self,
         prepare: P,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
@@ -111,7 +111,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare_middleware<S, P>(
         self,
         prepare: P,
-    ) -> ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful>
+    ) -> ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator>
     where
         S: 'static,
         P: Prepare<C> + 'static,
@@ -133,7 +133,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static>
     pub fn prepare<P>(
         self,
         prepare: P,
-    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful>
+    ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
     where
         P: Prepare<C, Effect = ()> + 'static,
     {
