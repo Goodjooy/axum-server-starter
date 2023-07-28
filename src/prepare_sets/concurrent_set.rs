@@ -62,7 +62,8 @@ impl<C, Decorator> ConcurrentPrepareSet<C, Decorator>
             prepare
                 .prepare(configure)
                 .into_future()
-                .map_err(PrepareError::to_prepare_error::<P, _>),
+                .map_err(PrepareError::to_prepare_error::<P, _>)
+                .pipe(Decorator::decorator)
         )
             .map(|(l, r)| {
                 Ok({
@@ -73,7 +74,7 @@ impl<C, Decorator> ConcurrentPrepareSet<C, Decorator>
                     states
                 })
             })
-            .pipe(Decorator::decorator)
+
             .boxed_local();
 
         ConcurrentPrepareSet {
@@ -100,13 +101,14 @@ impl<C, Decorator> ConcurrentPrepareSet<C, Decorator>
             prepare
                 .prepare(configure)
                 .into_future()
-                .map_err(PrepareError::to_prepare_error::<P, _>),
+                .map_err(PrepareError::to_prepare_error::<P, _>)
+                .pipe(Decorator::decorator),
         )
             .map(|(l, r)| {
                 r?;
                 l
             })
-            .pipe(Decorator::decorator)
+
             .boxed_local();
 
         ConcurrentPrepareSet {

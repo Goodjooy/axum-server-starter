@@ -19,7 +19,7 @@ pub use prepare_behave::effect_traits::{
 };
 pub use server_prepare::{
     BindServe, ConfigureServerEffect, LoggerInitialization, PrepareError, PrepareStartError,
-    ServeAddress, ServerPrepare,
+    ServeAddress, ServerPrepare,PrepareDecorator
 };
 pub use server_ready::ServerReady;
 

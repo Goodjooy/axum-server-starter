@@ -84,7 +84,7 @@ pub trait ConfigureServerEffect<A = AddrIncoming>
 ///
 ///## NOTE
 ///this feature is **NOT** available yet
-pub trait PrepareDecorator {
+pub trait PrepareDecorator :'static{
     type OutFut<'fut, Fut, T>: Future<Output=Result<T, PrepareError>> + 'fut
         where Fut: Future<Output=Result<T, PrepareError>> + 'fut ,
               T: 'static
