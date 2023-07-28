@@ -1,11 +1,12 @@
 use std::error;
 use std::fmt::Display;
+use std::future::Future;
 use std::net::SocketAddr;
 
-use hyper::server::accept::Accept;
-use hyper::server::conn::AddrIncoming;
-use hyper::server::Builder;
 use hyper::Server;
+use hyper::server::accept::Accept;
+use hyper::server::Builder;
+use hyper::server::conn::AddrIncoming;
 
 /// binding to any kind of income stream
 ///
@@ -39,8 +40,8 @@ pub trait ServeAddress {
 }
 
 impl<T> BindServe for T
-where
-    T: ServeAddress,
+    where
+        T: ServeAddress,
 {
     type A = AddrIncoming;
     type Target = SocketAddr;
@@ -67,10 +68,41 @@ pub trait LoggerInitialization {
 
 /// change the server configure
 pub trait ConfigureServerEffect<A = AddrIncoming>
-where
-    A: Accept,
+    where
+        A: Accept,
 {
     fn effect_server(&self, server: Builder<A>) -> Builder<A> {
         server
+    }
+}
+
+/// add decorator for each prepare 's [`Future`]
+///
+///It is useful for adding extra functional on original prepare task
+///
+///## NOTE
+///this feature is **NOT** available yet
+pub trait PrepareDecorator {
+    type OutFut<'fut, Fut>: Future<Output=Fut::Output> + 'fut + Send + Sync
+        where Fut: Future + 'fut + Send + Sync,
+              Fut::Output: 'static
+    ;
+
+    fn decorator<'fut, Fut>(in_fut: Fut) -> Self::OutFut<'fut, Fut>
+        where Fut: Future + 'fut + Send + Sync,
+              Fut::Output: 'static
+    ;
+}
+
+/// Default Decorator without any effect
+pub struct EmptyDecorator;
+
+impl PrepareDecorator for EmptyDecorator {
+    type OutFut<'fut, Fut> = Fut where Fut: Future + 'fut + Send + Sync, Fut::Output: 'static;
+
+    fn decorator<'fut, Fut>(in_fut: Fut) -> Self::OutFut<'fut, Fut>
+        where Fut: Future + 'fut + Send + Sync, Fut::Output: 'static {
+        in_fut
+
     }
 }
