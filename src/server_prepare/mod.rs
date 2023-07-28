@@ -37,6 +37,7 @@ mod graceful_shutdown;
 mod state_ready;
 
 mod configure;
+mod decorator;
 
 pub struct NoLog;
 
