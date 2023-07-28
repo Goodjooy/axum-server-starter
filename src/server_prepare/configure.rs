@@ -8,6 +8,8 @@ use hyper::server::accept::Accept;
 use hyper::server::Builder;
 use hyper::server::conn::AddrIncoming;
 
+use crate::PrepareError;
+
 /// binding to any kind of income stream
 ///
 /// ## Using Cases
@@ -83,14 +85,14 @@ pub trait ConfigureServerEffect<A = AddrIncoming>
 ///## NOTE
 ///this feature is **NOT** available yet
 pub trait PrepareDecorator {
-    type OutFut<'fut, Fut>: Future<Output=Fut::Output> + 'fut + Send + Sync
-        where Fut: Future + 'fut + Send + Sync,
-              Fut::Output: 'static
+    type OutFut<'fut, Fut, T>: Future<Output=Result<T, PrepareError>> + 'fut
+        where Fut: Future<Output=Result<T, PrepareError>> + 'fut ,
+              T: 'static
     ;
 
-    fn decorator<'fut, Fut>(in_fut: Fut) -> Self::OutFut<'fut, Fut>
-        where Fut: Future + 'fut + Send + Sync,
-              Fut::Output: 'static
+    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
+        where Fut: Future<Output=Result<T, PrepareError>> + 'fut ,
+              T: 'static
     ;
 }
 
@@ -98,11 +100,12 @@ pub trait PrepareDecorator {
 pub struct EmptyDecorator;
 
 impl PrepareDecorator for EmptyDecorator {
-    type OutFut<'fut, Fut> = Fut where Fut: Future + 'fut + Send + Sync, Fut::Output: 'static;
+    type OutFut<'fut, Fut, T> = Fut
+        where Fut: Future<Output=Result<T, PrepareError>> + 'fut  ,T: 'static;
 
-    fn decorator<'fut, Fut>(in_fut: Fut) -> Self::OutFut<'fut, Fut>
-        where Fut: Future + 'fut + Send + Sync, Fut::Output: 'static {
+    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
+        where Fut: Future<Output=Result<T, PrepareError>> + 'fut , T: 'static {
         in_fut
-
     }
 }
+
