@@ -103,7 +103,42 @@ impl<C: 'static, Log, State, Graceful, R, L>
     /// prepare to start this server
     ///
     /// this will consume `Self` then return [ServerReady](crate::ServerReady)
+    #[deprecated]
     pub async fn prepare_start<NewResBody>(
+        self,
+    ) -> Result<
+        ServerReady<
+            impl Future<Output = Result<(), hyper::Error>>,
+            impl Future<Output = Result<(), hyper::Error>>,
+        >,
+        PrepareStartError,
+    >
+        where
+        // config
+            C: ServeAddress + ConfigureServerEffect,
+        // middleware
+            L: Send + 'static,
+            ServiceBuilder<L>: Layer<Route> + Clone,
+            <ServiceBuilder<L> as Layer<Route>>::Service: Send
+            + Clone
+            + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
+            + 'static,
+            <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
+            NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
+            NewResBody::Error: Into<BoxError>,
+        // prepare task
+            R: PrepareRouteEffect<State, Body>,
+        // state
+            State: FromStateCollector,
+            State: Clone + Send + 'static + Sync,
+        // graceful
+            Graceful: FetchGraceful,{
+        self.preparing().await
+    }
+    /// prepare to start this server
+    ///
+    /// this will consume `Self` then return [ServerReady](crate::ServerReady)
+    pub async fn preparing<NewResBody>(
         self,
     ) -> Result<
         ServerReady<
