@@ -6,7 +6,8 @@ use crate::utils::check_callable_expr;
 #[derive(Debug, darling::FromDeriveInput)]
 #[darling(attributes(conf), supports(struct_named))]
 pub struct DeriveInput {
-    pub(super) address: Address,
+    #[darling(default)]
+    pub(super) address: Option<Address>,
     #[darling(default)]
     pub(super) logger: Option<Logger>,
     #[darling(default)]
