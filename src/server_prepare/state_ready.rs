@@ -10,7 +10,7 @@ impl<C, FutEffect, Log, Graceful,Decorator> ServerPrepare<C, FutEffect, Log, Sta
     /// State
     pub fn convert_state<S: FromStateCollector>(
         self,
-    ) -> ServerPrepare<C, FutEffect, Log, StateReady<S>, Graceful> {
+    ) -> ServerPrepare<C, FutEffect, Log, StateReady<S>, Graceful,Decorator> {
         ServerPrepare {
             prepares: self.prepares,
             graceful: self.graceful,
@@ -19,7 +19,7 @@ impl<C, FutEffect, Log, Graceful,Decorator> ServerPrepare<C, FutEffect, Log, Sta
         }
     }
     /// convenient function for [`ServerPrepare::convert_state::<()>`](axum_starter::ServerPrepare::convert_state)
-    pub fn no_state(self) -> ServerPrepare<C, FutEffect, Log, StateReady<()>, Graceful> {
+    pub fn no_state(self) -> ServerPrepare<C, FutEffect, Log, StateReady<()>, Graceful,Decorator> {
         self.convert_state::<()>()
     }
 }

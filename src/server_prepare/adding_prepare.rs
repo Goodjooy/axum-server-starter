@@ -7,6 +7,7 @@ use crate::{
     prepare_sets::ContainerResult,
     ConcurrentPrepareSet, ServerPrepare,
 };
+use crate::server_prepare::PrepareDecorator;
 
 type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful,Decorator> =
     ServerPrepare<C, ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>, Log, State, Graceful,Decorator>;
@@ -24,6 +25,8 @@ type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful,Decorator
 
 impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static,Decorator>
     ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
+
+where Decorator:PrepareDecorator
 {
     /// adding a set of [Prepare] executing concurrently
     ///
@@ -35,7 +38,7 @@ impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static,Decorator>
         concurrent: F,
     ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful,Decorator>
     where
-        F: FnOnce(ConcurrentPrepareSet<C>) -> ConcurrentPrepareSet<C> + 'static,
+        F: FnOnce(ConcurrentPrepareSet<C,Decorator>) -> ConcurrentPrepareSet<C,Decorator> + 'static,
     {
         let prepares = self.span.in_scope(|| {
             debug!(mode = "Concurrent", action = "Add Prepare");

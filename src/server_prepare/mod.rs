@@ -20,10 +20,9 @@ use crate::{
     SerialPrepareSet,
     server_ready::ServerReady,
 };
-use crate::server_prepare::configure::{EmptyDecorator, PrepareDecorator};
 
 pub use self::{
-    configure::{BindServe, ConfigureServerEffect, LoggerInitialization, ServeAddress},
+    configure::{BindServe, ConfigureServerEffect, LoggerInitialization, ServeAddress,EmptyDecorator, PrepareDecorator},
     error::{PrepareError, PrepareStartError},
 };
 use self::{
@@ -45,18 +44,18 @@ pub struct LogInit;
 
 /// type for prepare starting
 pub struct ServerPrepare<C, Effect, Log = LogInit, State = StateNotReady, Graceful = NoGraceful, Decorator = EmptyDecorator> {
-    prepares: SerialPrepareSet<C, Effect>,
+    prepares: SerialPrepareSet<C, Effect,Decorator>,
     graceful: Graceful,
     #[cfg(feature = "logger")]
     span: tracing::Span,
     #[cfg(not(feature = "logger"))]
     span: crate::fake_span::FakeSpan,
-    _phantom: PhantomData<(Log, State, Decorator)>,
+    _phantom: PhantomData<(Log, State)>,
 }
 
 impl<C, FutEffect, Log, State, Graceful, Decorator> ServerPrepare<C, FutEffect, Log, State, Graceful, Decorator> {
     fn new(
-        prepares: SerialPrepareSet<C, FutEffect>,
+        prepares: SerialPrepareSet<C, FutEffect,Decorator>,
         graceful: Graceful,
         #[cfg(feature = "logger")] span: tracing::Span,
         #[cfg(not(feature = "logger"))] span: crate::fake_span::FakeSpan,
@@ -77,7 +76,7 @@ impl<C, FutEffect, State, Graceful, Decorator> ServerPrepare<C, FutEffect, NoLog
     /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(
         self,
-    ) -> Result<ServerPrepare<C, FutEffect, LogInit, State, Graceful>, C::Error> {
+    ) -> Result<ServerPrepare<C, FutEffect, LogInit, State, Graceful,Decorator>, C::Error> {
         self.span.in_scope(|| {
             let t = self.prepares.get_ref_configure().init_logger();
             info!(logger = "Init");
