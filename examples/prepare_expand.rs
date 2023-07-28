@@ -1,41 +1,45 @@
 use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
+use std::marker::PhantomPinned;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use axum::{
     extract::{FromRef, Path, State},
     routing::get,
 };
-
-use axum_starter::{
-    prepare, router::Route, state::AddState, ConfigureServerEffect, FromStateCollector,
-    PrepareRouteEffect, PrepareStateEffect, Provider, ServeAddress, ServerPrepare, StateCollector,
-    TypeNotInState,
-};
+use axum_starter_macro::Configure;
 use futures::FutureExt;
+use hyper::server::accept::Accept;
+use hyper::server::conn::AddrIncoming;
+use log::{info, Level, log};
 use tokio::signal::ctrl_c;
+
+use axum_starter::{BindServe, ConfigureServerEffect, FromStateCollector, LoggerInitialization, prepare, PrepareRouteEffect, PrepareStateEffect, Provider, router::Route, ServerPrepare, state::AddState, StateCollector, TypeNotInState};
 
 #[tokio::main]
 async fn main() {
     ServerPrepare::with_config(Config {
         id: 11,
         name: "Str".to_string(),
-    })
-    .prepare(Student)
-    .prepare_state(EchoState)
-    .prepare_route(Echo)
-    .graceful_shutdown(ctrl_c().map(|_| ()))
-    .convert_state::<MyState>()
-    .prepare_start()
-    .await
-    .expect("")
-    .launch()
-    .await
-    .expect("");
+    }).init_logger()
+        .unwrap_or_else(|e|panic!("init logger panic :{e}"))
+        .prepare(Student)
+        .prepare_state(EchoState)
+        .prepare_route(Echo)
+        .graceful_shutdown(ctrl_c().map(|_| ()))
+        .convert_state::<MyState>()
+        .preparing()
+        .await
+        .expect("")
+        .launch()
+        .await
+        .expect("");
 }
 
 #[derive(Debug, Clone)]
@@ -69,10 +73,10 @@ fn echo_count() -> impl PrepareStateEffect {
 
 #[prepare(Echo)]
 fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
-where
-    B: http_body::Body + Send + 'static,
-    S: Clone + Send + Sync + 'static,
-    Arc<AtomicUsize>: FromRef<S>,
+    where
+        B: http_body::Body + Send + 'static,
+        S: Clone + Send + Sync + 'static,
+        Arc<AtomicUsize>: FromRef<S>,
 {
     (
         Route::new(
@@ -90,6 +94,10 @@ where
 }
 
 #[derive(Debug, Provider)]
+// #[conf(
+// logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
+// server
+// )]
 pub struct Config {
     #[provider(transparent)]
     id: i32,
@@ -97,12 +105,47 @@ pub struct Config {
     name: String,
 }
 
-impl ConfigureServerEffect for Config {}
+impl LoggerInitialization for Config { type Error = log::SetLoggerError;
+    fn init_logger(&self) -> Result<(), Self::Error> {
+        simple_logger::init_with_level(Level::Info)
+    } }
 
-impl ServeAddress for Config {
-    type Address = SocketAddr;
 
-    fn get_address(&self) -> Self::Address {
-        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080))
+impl<A:Accept> ConfigureServerEffect<A> for Config {}
+
+impl BindServe for Config {
+    type A = LogIpAddrIncome;
+    type Target = SocketAddr;
+
+    fn listen_target(&self) -> Self::Target {
+        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000))
+    }
+
+    fn create_listener(&self) -> Self::A {
+        LogIpAddrIncome(
+            AddrIncoming::bind(&self.listen_target())
+                .unwrap_or_else(|e| panic!("can not bind to {} {e}", self.listen_target())),
+            PhantomPinned
+        )
+
+    }
+}
+
+pub struct LogIpAddrIncome(AddrIncoming, PhantomPinned);
+
+impl Accept for LogIpAddrIncome {
+    type Conn = <AddrIncoming as Accept>::Conn;
+    type Error = <AddrIncoming as Accept>::Error;
+
+    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let income = unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().0) };
+        match income.poll_accept(cx) {
+            Poll::Ready(Some(Ok(conn))) => {
+                info!("income Ip is {}",conn.remote_addr());
+                Poll::Ready(Some(Ok(conn)))
+            }
+
+            poll => poll
+        }
     }
 }

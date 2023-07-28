@@ -91,8 +91,6 @@ impl<C, FutEffect, State, Graceful> ServerPrepare<C, FutEffect, NoLog, State, Gr
 impl<C: 'static> ServerPrepare<C, ContainerResult<(), Identity>, NoLog, StateNotReady, NoGraceful> {
     /// prepare staring the service with config
     pub fn with_config(config: C) -> Self
-        where
-            C: ServeAddress,
     {
         #[cfg(feature = "logger")]
             let span = tracing::debug_span!("prepare server start");
