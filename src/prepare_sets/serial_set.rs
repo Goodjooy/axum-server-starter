@@ -1,11 +1,14 @@
+use std::marker::PhantomData;
 #[allow(unused_imports)]
 use std::{any::type_name, mem::size_of_val};
 use std::{future::IntoFuture, sync::Arc};
 
 use futures::{future::ok, FutureExt, TryFutureExt};
 use http_body::Body;
+use tap::Pipe;
 use tower::layer::util::{Identity, Stack};
 
+use crate::server_prepare::PrepareDecorator;
 use crate::{
     prepare_behave::{
         effect_traits::{Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect},
@@ -20,12 +23,13 @@ use super::{BoxFuture, ContainerFuture, ContainerResult};
 ///
 /// ## Note
 /// the sync part of [Prepare] will be run immediately
-pub struct SerialPrepareSet<C, T> {
+pub struct SerialPrepareSet<C, T, Decorator> {
     prepare_fut: BoxFuture<T>,
     configure: Arc<C>,
+    _phantom_decorator: PhantomData<Decorator>,
 }
 
-impl<C, T> SerialPrepareSet<C, T> {
+impl<C, T, Decorator> SerialPrepareSet<C, T, Decorator> {
     pub(crate) fn get_ref_configure(&self) -> &C {
         &self.configure
     }
@@ -33,9 +37,16 @@ impl<C, T> SerialPrepareSet<C, T> {
     pub(crate) fn get_configure(&self) -> Arc<C> {
         Arc::clone(&self.configure)
     }
+    pub(crate) fn change_decorator<D: PrepareDecorator>(self) -> SerialPrepareSet<C, T, D> {
+        SerialPrepareSet {
+            prepare_fut: self.prepare_fut,
+            configure: self.configure,
+            _phantom_decorator: PhantomData,
+        }
+    }
 }
 
-impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>> {
+impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator> {
     pub(crate) fn unwrap(self) -> (ContainerFuture<R, L>, Arc<C>) {
         (self.prepare_fut, self.configure)
     }
@@ -46,11 +57,15 @@ type MiddlewareContainerResult<R, L, P, S, C> = ContainerResult<
     Stack<<<P as Prepare<C>>::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>,
 >;
 
-impl<C, R, L> SerialPrepareSet<C, ContainerResult<R, L>>
+type ThenRouterPrepareRet<C, P, R, L, Decorator> =
+    SerialPrepareSet<C, ContainerResult<(<P as Prepare<C>>::Effect, R), L>, Decorator>;
+
+impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
 where
     C: 'static,
     R: 'static,
     L: 'static,
+    Decorator: PrepareDecorator,
 {
     /// add a [Prepare] into serially executing set
     ///
@@ -58,7 +73,7 @@ where
     pub(crate) fn then_route<P, S, B>(
         self,
         prepare: P,
-    ) -> SerialPrepareSet<C, ContainerResult<(P::Effect, R), L>>
+    ) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S, B>,
@@ -77,19 +92,23 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_route(prepare, configure))
+            .and_then(|collector| collector.then_route::<Decorator, _, _, _, _>(prepare, configure))
             .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
 
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareStateEffect]
-    pub(crate) fn then_state<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>>
+    pub(crate) fn then_state<P>(
+        self,
+        prepare: P,
+    ) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
@@ -104,12 +123,13 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_state(prepare, configure))
+            .and_then(|collector| collector.then_state::<Decorator, _, _>(prepare, configure))
             .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
     /// add a [Prepare] into serially executing set
@@ -118,7 +138,7 @@ where
     pub(crate) fn then_middleware<P, S>(
         self,
         prepare: P,
-    ) -> SerialPrepareSet<C, MiddlewareContainerResult<R, L, P, S, C>>
+    ) -> SerialPrepareSet<C, MiddlewareContainerResult<R, L, P, S, C>, Decorator>
     where
         S: 'static,
         P: Prepare<C> + 'static,
@@ -134,18 +154,21 @@ where
 
         let prepare_fut = self
             .prepare_fut
-            .and_then(|collector| collector.then_middleware(prepare, configure))
+            .and_then(|collector| {
+                collector.then_middleware::<Decorator, _, _, _>(prepare, configure)
+            })
             .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
     /// add a [Prepare] into serially executing set
     ///
     /// without Effect
-    pub(crate) fn then<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>>
+    pub(crate) fn then<P>(self, prepare: P) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
     where
         P: Prepare<C, Effect = ()> + 'static,
     {
@@ -163,14 +186,16 @@ where
                 prepare
                     .prepare(configure)
                     .into_future()
-                    .map_ok(|_| collect)
                     .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
+                    .pipe(Decorator::decorator)
+                    .map_ok(|_| collect)
             })
             .boxed_local();
 
         SerialPrepareSet {
             prepare_fut,
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
 
@@ -178,21 +203,22 @@ where
     pub(crate) fn set_middleware<M: 'static>(
         self,
         layer: M,
-    ) -> SerialPrepareSet<C, ContainerResult<R, Stack<M, L>>> {
+    ) -> SerialPrepareSet<C, ContainerResult<R, Stack<M, L>>, Decorator> {
         SerialPrepareSet {
             prepare_fut: self
                 .prepare_fut
                 .map_ok(|effect| effect.layer(layer))
                 .boxed_local(),
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
 
     /// combine concurrent set into self
     pub(crate) fn combine(
         self,
-        concurrent: ConcurrentPrepareSet<C>,
-    ) -> SerialPrepareSet<C, ContainerResult<R, L>> {
+        concurrent: ConcurrentPrepareSet<C, Decorator>,
+    ) -> SerialPrepareSet<C, ContainerResult<R, L>, Decorator> {
         let fut = concurrent.into_internal_future();
 
         let prepare_fut = self
@@ -203,15 +229,17 @@ where
         SerialPrepareSet {
             prepare_fut,
             configure: self.configure,
+            _phantom_decorator: PhantomData,
         }
     }
 }
 
-impl<C: 'static> SerialPrepareSet<C, ContainerResult<(), Identity>> {
+impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<(), Identity>, Decorator> {
     pub(crate) fn new(configure: Arc<C>) -> Self {
         Self {
             prepare_fut: ok(EffectContainer::new()).boxed_local(),
             configure,
+            _phantom_decorator: PhantomData,
         }
     }
 }

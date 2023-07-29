@@ -10,17 +10,16 @@ pub struct ImplAddress<'r> {
     associate_fetcher: bool,
 }
 
-impl<'r> From<&'r DeriveInput> for ImplAddress<'r> {
-    fn from(input: &'r DeriveInput) -> Self {
-        let ident = &input.ident;
-        let (ty, fetcher, ass) = match input.address {
+impl<'r> From<(&'r Address, &'r syn::Ident)> for ImplAddress<'r> {
+    fn from((input, ident): (&'r Address, &'r syn::Ident)) -> Self {
+        let (ty, fetcher, ass) = match input {
             Address::Provide(Override::Explicit(Provider { ref ty })) => (Some(ty), None, false),
             Address::Provide(Override::Inherit) => (None, None, false),
             Address::Func {
                 ref path,
                 ref ty,
                 associate,
-            } => (ty.as_ref(), Some(path), associate),
+            } => (ty.as_ref(), Some(path), *associate),
         };
 
         Self {
@@ -90,7 +89,14 @@ pub struct ImplInitLog<'r> {
 
 impl<'r> From<&'r DeriveInput> for Option<ImplInitLog<'r>> {
     fn from(input: &'r DeriveInput) -> Self {
-        let Some(Logger{ func, error, associate }) = input.logger.as_ref() else {return  None;};
+        let Some(Logger {
+            func,
+            error,
+            associate,
+        }) = input.logger.as_ref()
+        else {
+            return None;
+        };
 
         Some(ImplInitLog {
             ident: &input.ident,
@@ -159,11 +165,11 @@ impl<'r> ToTokens for ImplServerEffect<'r> {
             .unwrap_or_else(|| quote::quote!(server));
 
         let token = quote::quote! {
-            impl ::axum_starter::ConfigureServerEffect for #ident{
+            impl<A: ::axum_starter::Accept> ::axum_starter::ConfigureServerEffect<A> for #ident{
                 fn effect_server(
                     &self,
-                    server: ::axum_starter::Builder<::axum_starter::AddrIncoming>,
-                ) -> ::axum_starter::Builder<::axum_starter::AddrIncoming> {
+                    server: ::axum_starter::Builder<A>,
+                ) -> ::axum_starter::Builder<A> {
                     #effect
                 }
             }
