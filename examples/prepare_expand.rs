@@ -1,23 +1,28 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+use std::marker::PhantomPinned;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::pin::Pin;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
 };
+use std::task::{Context, Poll};
 
 use axum::{
     extract::{FromRef, Path, State},
     routing::get,
 };
+use axum_starter_macro::Configure;
+
+use futures::FutureExt;
+use hyper::server::accept::Accept;
+use hyper::server::conn::AddrIncoming;
+use log::{info, Level};
+use tokio::signal::ctrl_c;
 
 use axum_starter::{
-    prepare, router::Route, state::AddState, ConfigureServerEffect, FromStateCollector,
-    PrepareRouteEffect, PrepareStateEffect, Provider, ServeAddress, ServerPrepare, StateCollector,
-    TypeNotInState,
+    prepare, router::Route, state::AddState, BindServe, FromStateCollector, PrepareRouteEffect,
+    PrepareStateEffect, Provider, ServerPrepare, StateCollector, TypeNotInState,
 };
-use futures::FutureExt;
-use tokio::signal::ctrl_c;
 
 #[tokio::main]
 async fn main() {
@@ -25,12 +30,14 @@ async fn main() {
         id: 11,
         name: "Str".to_string(),
     })
+    .init_logger()
+    .unwrap_or_else(|e| panic!("init logger panic :{e}"))
     .prepare(Student)
     .prepare_state(EchoState)
     .prepare_route(Echo)
     .graceful_shutdown(ctrl_c().map(|_| ()))
     .convert_state::<MyState>()
-    .prepare_start()
+    .preparing()
     .await
     .expect("")
     .launch()
@@ -89,7 +96,15 @@ where
     )
 }
 
-#[derive(Debug, Provider)]
+#[derive(Debug, Provider, Configure)]
+#[conf(
+    logger(
+        error = "log::SetLoggerError",
+        func = "||simple_logger::init_with_level(Level::Info)",
+        associate
+    ),
+    server
+)]
 pub struct Config {
     #[provider(transparent)]
     id: i32,
@@ -97,12 +112,41 @@ pub struct Config {
     name: String,
 }
 
-impl ConfigureServerEffect for Config {}
+impl BindServe for Config {
+    type A = LogIpAddrIncome;
+    type Target = SocketAddr;
 
-impl ServeAddress for Config {
-    type Address = SocketAddr;
+    fn listen_target(&self) -> Self::Target {
+        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000))
+    }
 
-    fn get_address(&self) -> Self::Address {
-        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080))
+    fn create_listener(&self) -> Self::A {
+        LogIpAddrIncome(
+            AddrIncoming::bind(&self.listen_target())
+                .unwrap_or_else(|e| panic!("can not bind to {} {e}", self.listen_target())),
+            PhantomPinned,
+        )
+    }
+}
+
+pub struct LogIpAddrIncome(AddrIncoming, PhantomPinned);
+
+impl Accept for LogIpAddrIncome {
+    type Conn = <AddrIncoming as Accept>::Conn;
+    type Error = <AddrIncoming as Accept>::Error;
+
+    fn poll_accept(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let income = unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().0) };
+        match income.poll_accept(cx) {
+            Poll::Ready(Some(Ok(conn))) => {
+                info!("income Ip is {}", conn.remote_addr());
+                Poll::Ready(Some(Ok(conn)))
+            }
+
+            poll => poll,
+        }
     }
 }
