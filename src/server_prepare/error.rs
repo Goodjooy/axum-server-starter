@@ -1,5 +1,5 @@
-use std::{any::type_name, error};
 use std::fmt::{Debug, Display, Formatter};
+use std::{any::type_name, error};
 
 use crate::prepare_behave::effect_collectors::state_collector::TypeNotInState;
 
@@ -13,7 +13,7 @@ pub struct PrepareError {
 
 impl Debug for PrepareError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <PrepareError as Display>::fmt(self,f)
+        <PrepareError as Display>::fmt(self, f)
     }
 }
 
