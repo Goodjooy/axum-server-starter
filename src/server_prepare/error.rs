@@ -1,13 +1,20 @@
 use std::{any::type_name, error};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::prepare_behave::effect_collectors::state_collector::TypeNotInState;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(thiserror::Error)]
 /// the error while prepare for each [Prepare](crate::Prepare) task
 #[error("prepare error on {ty} : {source}")]
 pub struct PrepareError {
     ty: &'static str,
     source: Box<dyn error::Error>,
+}
+
+impl Debug for PrepareError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <PrepareError as Display>::fmt(self,f)
+    }
 }
 
 impl PrepareError {
