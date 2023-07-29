@@ -81,9 +81,6 @@ where
 /// add decorator for each prepare 's [`Future`]
 ///
 ///It is useful for adding extra functional on original prepare task
-///
-///## NOTE
-///this feature is **NOT** available yet
 pub trait PrepareDecorator: 'static {
     type OutFut<'fut, Fut, T>: Future<Output = Result<T, PrepareError>> + 'fut
     where
