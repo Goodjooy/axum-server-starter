@@ -210,7 +210,7 @@ async fn start() {
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState, Body>, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
-        .prepare_start()
+        .preparing()
         .await
         .expect("Prepare for starting server failure ")
         .launch()
