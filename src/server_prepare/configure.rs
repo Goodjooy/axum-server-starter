@@ -7,7 +7,6 @@ use hyper::server::conn::AddrIncoming;
 use hyper::server::Builder;
 use hyper::Server;
 
-
 /// binding to any kind of income stream
 ///
 /// ## Using Cases
@@ -76,4 +75,4 @@ where
     }
 }
 
-pub use super::decorator::{PrepareDecorator,EmptyDecorator};
+pub use super::decorator::{EmptyDecorator, PrepareDecorator};

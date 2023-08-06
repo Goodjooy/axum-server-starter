@@ -13,7 +13,7 @@ pub trait Prepare<C: 'static> {
     /// prepare error
     type Error: StdError + 'static;
     /// the future for preparing
-    type Future: IntoFuture<Output = Result<Self::Effect, Self::Error>>+'static;
+    type Future: IntoFuture<Output = Result<Self::Effect, Self::Error>> + 'static;
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
