@@ -13,7 +13,7 @@ pub trait Prepare<C: 'static> {
     /// prepare error
     type Error: StdError + 'static;
     /// the future for preparing
-    type Future: IntoFuture<Output = Result<Self::Effect, Self::Error>>;
+    type Future: IntoFuture<Output = Result<Self::Effect, Self::Error>> + 'static;
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
@@ -43,9 +43,9 @@ impl<T: 'static, E: 'static + StdError> FalliblePrepare for Result<T, E> {
 impl<F, C, Fut, Effect> Prepare<C> for F
 where
     C: 'static,
-    F: FnOnce(Arc<C>) -> Fut,
-    Fut: Future<Output = Effect>,
-    Effect: FalliblePrepare,
+    F: FnOnce(Arc<C>) -> Fut + 'static,
+    Fut: Future<Output = Effect> + 'static,
+    Effect: FalliblePrepare + 'static,
 {
     type Effect = Effect::Effect;
 

@@ -120,7 +120,11 @@ impl<C: 'static>
         let span = tracing::debug_span!("prepare server start");
         #[cfg(not(feature = "logger"))]
         let span = crate::fake_span::FakeSpan;
-        ServerPrepare::new(SerialPrepareSet::new(Arc::new(config)), NoGraceful, span)
+        ServerPrepare::new(
+            SerialPrepareSet::new(Arc::new(config), EmptyDecorator),
+            NoGraceful,
+            span,
+        )
     }
 }
 
