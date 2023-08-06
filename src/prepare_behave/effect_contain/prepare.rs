@@ -20,6 +20,7 @@ impl<R, L> EffectContainer<R, L> {
         self,
         prepare: P,
         configure: Arc<C>,
+        decorator:Arc<D>
     ) -> Result<EffectContainer<(P::Effect, R), L>, PrepareError>
     where
         D: PrepareDecorator,
@@ -34,7 +35,7 @@ impl<R, L> EffectContainer<R, L> {
                 .prepare(configure)
                 .into_future()
                 .map_err(|err| PrepareError::to_prepare_error::<P, _>(err))
-                .pipe(D::decorator)
+                .pipe(|fut|decorator.prepare_decorator::<C,P,_>(fut))
                 .await?,
         ))
     }
@@ -43,6 +44,7 @@ impl<R, L> EffectContainer<R, L> {
         self,
         prepare: P,
         configure: Arc<C>,
+        decorator:Arc<D>,
     ) -> Result<Self, PrepareError>
     where
         D: PrepareDecorator,
@@ -55,7 +57,7 @@ impl<R, L> EffectContainer<R, L> {
                 .prepare(configure)
                 .into_future()
                 .map_err(PrepareError::to_prepare_error::<P, _>)
-                .pipe(D::decorator)
+                .pipe(|fut|decorator.prepare_decorator::<C,P,_>(fut))
                 .await?,
         ))
     }
@@ -64,6 +66,7 @@ impl<R, L> EffectContainer<R, L> {
         self,
         prepare: P,
         configure: Arc<C>,
+        decorator:Arc<D>,
     ) -> Result<
         EffectContainer<R, Stack<<P::Effect as PrepareMiddlewareEffect<S>>::Middleware, L>>,
         PrepareError,
@@ -79,7 +82,7 @@ impl<R, L> EffectContainer<R, L> {
                 .prepare(configure)
                 .into_future()
                 .map_err(PrepareError::to_prepare_error::<P, _>)
-                .pipe(D::decorator)
+                .pipe(|fut|decorator.prepare_decorator::<C,P,_>(fut))
                 .await?,
         ))
     }

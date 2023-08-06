@@ -1,48 +1,51 @@
+use std::any::type_name;
 use std::future::Future;
-use crate::{PrepareError, ServerPrepare};
+use crate::{Prepare, PrepareError, ServerPrepare};
 
-impl<C, Effect, Log, State, Graceful, Decorator>
-    ServerPrepare<C, Effect, Log, State, Graceful, Decorator>
-{
+impl<C, Effect, Log, State, Graceful, Decorator> ServerPrepare<C, Effect, Log, State, Graceful, Decorator> {
     /// Add Decorator apply on every prepare [`futures::Future`]
     ///
     /// this will overwrite old [`PrepareDecorator`], combine multiply [`PrepareDecorator`] is **Not**
     ///support. Manual writing combining code instead
-    pub fn set_decorator<D>(self, _: D) -> ServerPrepare<C, Effect, Log, State, Graceful, D>
-    where
-        D: PrepareDecorator,
-    {
-        ServerPrepare::new(self.prepares.change_decorator(), self.graceful, self.span)
+    pub fn set_decorator<D>(self, decorator: D) -> ServerPrepare<C, Effect, Log, State, Graceful, D>
+        where D: PrepareDecorator, {
+        ServerPrepare::new(self.prepares.change_decorator(decorator), self.graceful, self.span)
     }
 }
 
 /// add decorator for each prepare 's [`Future`]
 ///
 ///It is useful for adding extra functional on original prepare task
-pub trait PrepareDecorator: 'static {
-    type OutFut<'fut, Fut, T>: Future<Output = Result<T, PrepareError>> + 'fut
-        where
-            Fut: Future<Output = Result<T, PrepareError>> + 'fut,
-            T: 'static;
+pub trait PrepareDecorator: 'static
 
-    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
-        where
-            Fut: Future<Output = Result<T, PrepareError>> + 'fut,
-            T: 'static;
+{
+    type OutFut<Fut, T>: Future<Output=Result<T, PrepareError>> + 'static
+        where Fut: Future<Output=Result<T, PrepareError>> + 'static,
+              T: 'static;
+
+    fn decorator<Fut, T>(&self, src: &'static str, in_fut: Fut) -> Self::OutFut<Fut, T>
+        where Fut: Future<Output=Result<T, PrepareError>> + 'static,
+              T: 'static;
+
+    fn prepare_decorator<C, P, Fut>(&self, in_fut: Fut) -> Self::OutFut<Fut, P::Effect>
+        where Fut: Future<Output=Result<P::Effect, PrepareError>> + 'static,
+              P: Prepare<C>,
+              C: 'static {
+        PrepareDecorator::decorator(self, type_name::<P>(), in_fut)
+    }
 }
 
 /// Default Decorator without any effect
 pub struct EmptyDecorator;
 
 impl PrepareDecorator for EmptyDecorator {
-    type OutFut<'fut, Fut, T> = Fut
-        where Fut: Future<Output=Result<T, PrepareError>> + 'fut  ,T: 'static;
+    type OutFut<Fut, T> = Fut where Fut: Future<Output=Result<T, PrepareError>> + 'static, T: 'static;
 
-    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
-        where
-            Fut: Future<Output = Result<T, PrepareError>> + 'fut,
-            T: 'static,
-    {
+    fn decorator<Fut, T>(&self, _src: &'static str, in_fut: Fut) -> Self::OutFut<Fut, T> where Fut: Future<Output=Result<T, PrepareError>> + 'static, T: 'static {
         in_fut
     }
 }
+
+
+
+

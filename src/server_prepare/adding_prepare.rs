@@ -45,12 +45,15 @@ where
         concurrent: F,
     ) -> ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
     where
-        F: FnOnce(ConcurrentPrepareSet<C, Decorator>) -> ConcurrentPrepareSet<C, Decorator>
+        F: FnOnce(ConcurrentPrepareSet<'_,C, Decorator>) -> ConcurrentPrepareSet<'_,C, Decorator>
             + 'static,
     {
         let prepares = self.span.in_scope(|| {
             debug!(mode = "Concurrent", action = "Add Prepare");
-            let concurrent_set = ConcurrentPrepareSet::new(self.prepares.get_configure());
+            let decorator = self.prepares.get_decorator();
+            let concurrent_set = ConcurrentPrepareSet::new(
+                self.prepares.get_configure(),&*decorator
+                );
             self.prepares.combine(concurrent(concurrent_set))
         });
         ServerPrepare::new(prepares, self.graceful, self.span)
