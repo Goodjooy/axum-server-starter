@@ -15,7 +15,7 @@ async fn start() {
         .prepare_route(GreetRoute)
         .layer(TraceLayer::new_for_http())
         .no_state()
-        .prepare_start()
+        .preparing()
         .await
         .expect("Prepare for Start Error")
         .launch()
