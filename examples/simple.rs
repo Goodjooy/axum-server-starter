@@ -29,6 +29,7 @@ use futures::future::LocalBoxFuture;
 use log::info;
 use std::slice::Iter;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
+
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
 #[conf(
@@ -73,7 +74,7 @@ fn show_foo<S: AsRef<str> + ?Sized>(f: &'arg S) {
 
 /// if prepare procedure may occur Error, using `?` after
 /// Prepare task Name
-#[prepare(Sleeping?)]
+#[prepare(Sleeping ?)]
 async fn sleep() -> Result<(), Infallible> {
     tokio::time::sleep(Duration::from_secs(2)).await;
     println!("sleep down 2s");
@@ -114,7 +115,7 @@ where
     )
 }
 
-#[prepare(box C?)]
+#[prepare(box C ?)]
 fn routers<S, B>() -> Result<impl PrepareRouteEffect<S, B>, Infallible>
 where
     S: Clone + Send + Sync + 'static,
@@ -225,17 +226,19 @@ struct MyState {
 struct Decorator;
 
 impl PrepareDecorator for Decorator {
-    type OutFut<'fut, Fut, T> = LocalBoxFuture<'fut, Result<T, PrepareError>> where Fut: Future<Output=Result<T, PrepareError>> + 'fut, T: 'static;
+    type OutFut<Fut, T> = LocalBoxFuture<'static, Result<T, PrepareError>>
+        where Fut: Future<Output=Result<T, PrepareError>> + 'static,
+              T: 'static;
 
-    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
+    fn decorator<Fut, T>(&self, src: &'static str, in_fut: Fut) -> Self::OutFut<Fut, T>
     where
-        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        Fut: Future<Output = Result<T, PrepareError>> + 'static,
         T: 'static,
     {
-        Box::pin(async {
+        Box::pin(async move {
             match in_fut.await {
                 Ok(ret) => {
-                    info!("prepare ret type is {}", type_name::<T>());
+                    info!("prepare[{src}] ret type is {}", type_name::<T>());
                     Ok(ret)
                 }
                 err @ Err(_) => err,
