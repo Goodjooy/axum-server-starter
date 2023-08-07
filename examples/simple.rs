@@ -39,7 +39,7 @@ use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 )]
 #[provider(transparent)]
 struct Configure {
-    #[provider(ref)]
+    #[provider(r#ref)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
@@ -68,7 +68,7 @@ impl Configure {
 
 /// if need ref args ,adding a lifetime
 #[prepare(box ShowFoo 'arg)]
-fn show_foo<S: AsRef<str> + ?Sized>(f: &'arg S) {
+fn show_foo<S: AsRef<str> + ?Sized>(f: &S) {
     println!("this is Foo {}", f.as_ref())
 }
 
@@ -170,7 +170,6 @@ fn on_fly_state() -> InFlight {
                 let sender = sender.clone();
                 async move {
                     sender.send(count).await.ok();
-                    ()
                 }
             })
             .await
@@ -197,7 +196,7 @@ async fn start() {
         .init_logger()
         .expect("Init Logger Failure")
         .convert_state::<MyState>()
-        .set_decorator(Decorator)
+        .prepare_decorator(Decorator)
         .prepare(ShowValue::<_, 11>)
         .prepare_route(C)
         .graceful_shutdown(
@@ -223,9 +222,14 @@ struct MyState {
     on_fly: watch::Receiver<usize>,
 }
 
-struct Decorator;
+#[prepare(sync Decorator)]
+fn logger_decorator(addr: SocketAddr) -> LoggerDecorator {
+    LoggerDecorator(addr)
+}
 
-impl PrepareDecorator for Decorator {
+pub struct LoggerDecorator(SocketAddr);
+
+impl PrepareDecorator for LoggerDecorator {
     type OutFut<Fut, T> = LocalBoxFuture<'static, Result<T, PrepareError>>
         where Fut: Future<Output=Result<T, PrepareError>> + 'static,
               T: 'static;
