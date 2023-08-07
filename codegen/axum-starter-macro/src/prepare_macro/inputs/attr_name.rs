@@ -3,6 +3,7 @@ use syn::{parse::Parse, Lifetime, Token};
 pub struct PrepareName {
     pub(in crate::prepare_macro) may_fall: bool,
     pub(in crate::prepare_macro) prepare_mode: PrepareFnMode,
+    pub (in crate::prepare_macro) origin:bool,
     pub(in crate::prepare_macro) ident: syn::Ident,
     pub(in crate::prepare_macro) lt: Option<Lifetime>,
 }
@@ -18,6 +19,7 @@ use syn::custom_keyword;
 use syn::spanned::Spanned;
 
 custom_keyword!(sync);
+custom_keyword!(origin);
 
 impl Parse for PrepareName {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -46,6 +48,13 @@ impl Parse for PrepareName {
             }
         };
 
+        let origin = if input.peek(origin){
+            input.parse::<origin>()?;
+            true
+        }else {
+            false
+        };
+
         let ident = input.parse::<syn::Ident>()?;
 
         let may_fall = if input.peek(Token![?]) {
@@ -60,6 +69,7 @@ impl Parse for PrepareName {
             ident,
             prepare_mode,
             lt,
+            origin,
             may_fall,
         })
     }

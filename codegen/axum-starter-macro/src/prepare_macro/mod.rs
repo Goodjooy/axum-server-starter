@@ -1,18 +1,24 @@
-use syn::{punctuated::Punctuated, ItemFn};
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{punctuated::Punctuated, ItemFn, Lifetime};
+use syn::visit::{Visit, visit_lifetime};
 
 use self::{
     code_gen::CodeGen,
     inputs::{attr_name::PrepareName, input_fn::InputFn},
 };
 
+
 pub mod code_gen;
 pub mod inputs;
+
+const DEFAULT_LIFETIME_SYMBOL: &str = "'r";
 
 pub fn prepare_macro(
     PrepareName {
         may_fall,
         prepare_mode,
-        ident,
+        origin, ident,
         lt,
     }: &PrepareName,
     mut item_fn: ItemFn,
@@ -30,14 +36,29 @@ pub fn prepare_macro(
         }
     }
 
+
     let input = InputFn::from_fn_item(&item_fn, lt.as_ref())?;
     let code_gen = CodeGen::new(ident, lt, *prepare_mode, *may_fall, input);
 
+    let origin = if *origin {
+        quote!(
+            #[allow(dead_code)]
+            # item_fn
+        )
+    } else { TokenStream::new() };
     Ok(quote::quote! {
         # code_gen
-        #[allow(clippy::needless_lifetimes)]
-        #[allow(dead_code)]
-        # item_fn
+        #origin
+    }.into())
+}
+
+
+struct ContainLifetime<'r>(&'r Lifetime, bool);
+
+impl<'r, 'ast> Visit<'ast> for ContainLifetime<'r> {
+    fn visit_lifetime(&mut self, i: &'ast Lifetime) {
+        self.1 = self.1 || i == self.0;
+        visit_lifetime(self, i);
     }
 }
 
