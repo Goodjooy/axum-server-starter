@@ -4,7 +4,7 @@ pub mod prepare_state;
 
 use std::{error::Error as StdError, future::IntoFuture, sync::Arc};
 
-use futures::{future::Map, Future, FutureExt};
+use futures::{Future, FutureExt};
 
 /// Prepare Task witch may return any kind of effect
 pub trait Prepare<C: 'static> {
@@ -17,43 +17,21 @@ pub trait Prepare<C: 'static> {
     fn prepare(self, config: Arc<C>) -> Self::Future;
 }
 
-/// Fallible Prepare
-///
-/// convenient trait for Macro code generate
-pub trait FalliblePrepare {
-    /// the effect of prepare
-    type Effect: 'static;
-    /// prepare error
-    type Error: StdError + 'static;
-
-    /// convent the Fallible [Prepare] result to [Result]
-    fn to_result(self) -> Result<Self::Effect, Self::Error>;
-}
-
-impl<T: 'static, E: 'static + StdError> FalliblePrepare for Result<T, E> {
-    type Effect = T;
-
-    type Error = E;
-
-    fn to_result(self) -> Result<Self::Effect, Self::Error> {
-        self
-    }
-}
-
-impl<F, C, Fut, Effect> Prepare<C> for F
+impl<F, C, Fut, Effect,Error> Prepare<C> for F
 where
     C: 'static,
     F: FnOnce(Arc<C>) -> Fut + 'static,
-    Fut: Future<Output = Effect> + 'static,
-    Effect: FalliblePrepare + 'static,
+    Fut: Future<Output = Result<Effect,Error>> + 'static,
+    Effect:  'static,
+    Error:'static +StdError
 {
-    type Effect = Effect::Effect;
+    type Effect = Effect;
 
-    type Error = Effect::Error;
+    type Error = Error;
 
-    type Future = Map<Fut, fn(Effect) -> Result<Self::Effect, Self::Error>>;
+    type Future = Fut;
 
     fn prepare(self, config: Arc<C>) -> Self::Future {
-        self(config).map(FalliblePrepare::to_result)
+        self(config)
     }
 }

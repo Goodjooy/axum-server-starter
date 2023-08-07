@@ -15,7 +15,7 @@ pub use prepare_behave::effect_collectors::state_collector::{
     FromStateCollector, StateCollector, TypeNotInState,
 };
 pub use prepare_behave::effect_traits::{
-    FalliblePrepare, Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect,
+    Prepare, PrepareMiddlewareEffect, PrepareRouteEffect, PrepareStateEffect,
 };
 pub use server_prepare::{
     BindServe, ConfigureServerEffect, LoggerInitialization, PrepareDecorator, PrepareError,
@@ -28,7 +28,7 @@ pub use config_provide::provider::Provider;
 pub use effect_utils::{router, state};
 pub use hyper::server::accept::Accept;
 pub use prepare_sets::{concurrent_set::ConcurrentPrepareSet, serial_set::SerialPrepareSet};
+pub use futures::future::{Ready,ready};
 
 pub use hyper::server::{conn::AddrIncoming, Builder};
-/// [`Prepare`](crate::Prepare) return type, helper for macro code gen
-pub type PrepareRet<E> = Result<<E as FalliblePrepare>::Effect, <E as FalliblePrepare>::Error>;
+
