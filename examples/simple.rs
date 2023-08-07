@@ -170,7 +170,6 @@ fn on_fly_state() -> InFlight {
                 let sender = sender.clone();
                 async move {
                     sender.send(count).await.ok();
-                    ()
                 }
             })
             .await

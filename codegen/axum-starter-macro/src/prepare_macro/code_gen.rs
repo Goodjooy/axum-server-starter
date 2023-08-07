@@ -1,10 +1,10 @@
 use darling::ToTokens;
 
 use crate::prepare_macro::inputs::attr_name::PrepareFnMode;
-use quote::{format_ident, quote};
-use syn::{Lifetime, Stmt, Type};
-use syn::spanned::Spanned;
 use crate::prepare_macro::DEFAULT_LIFETIME_SYMBOL;
+use quote::{format_ident, quote};
+use syn::spanned::Spanned;
+use syn::{Lifetime, Stmt, Type};
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
@@ -63,7 +63,7 @@ impl<'r> ToTokens for CodeGen<'r> {
 
         let bound_lifetime = match args_lifetime {
             Some(l) => (*l).clone(),
-            None => Lifetime::new(DEFAULT_LIFETIME_SYMBOL,args_lifetime.span()),
+            None => Lifetime::new(DEFAULT_LIFETIME_SYMBOL, args_lifetime.span()),
         };
 
         let extra_generic = {

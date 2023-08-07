@@ -3,7 +3,7 @@ use syn::{parse::Parse, Lifetime, Token};
 pub struct PrepareName {
     pub(in crate::prepare_macro) may_fall: bool,
     pub(in crate::prepare_macro) prepare_mode: PrepareFnMode,
-    pub (in crate::prepare_macro) origin:bool,
+    pub(in crate::prepare_macro) origin: bool,
     pub(in crate::prepare_macro) ident: syn::Ident,
     pub(in crate::prepare_macro) lt: Option<Lifetime>,
 }
@@ -48,10 +48,10 @@ impl Parse for PrepareName {
             }
         };
 
-        let origin = if input.peek(origin){
+        let origin = if input.peek(origin) {
             input.parse::<origin>()?;
             true
-        }else {
+        } else {
             false
         };
 

@@ -64,8 +64,8 @@ impl FromStateCollector for MyState {
     }
 }
 
-#[prepare(box origin Student )]
-async fn arr(id: i32, name: & String) {
+#[prepare(box origin Student)]
+async fn arr(id: i32, name: &String) {
     println!("my name is {name} id is {id}");
 }
 

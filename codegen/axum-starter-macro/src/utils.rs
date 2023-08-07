@@ -1,7 +1,6 @@
 use heck::ToUpperCamelCase;
 use syn::{
-    spanned::Spanned, AngleBracketedGenericArguments, AssocType, Expr, Path, PathSegment, Type,
-    TypeArray, TypePath, TypePtr, TypeReference, TypeSlice, TypeTuple,
+    spanned::Spanned, Expr,
 };
 
 pub(crate) fn snake_to_upper(src: &str) -> String {
@@ -22,49 +21,6 @@ pub fn check_callable_expr(expr: &Expr) -> Result<(), syn::Error> {
         Ok(())
     } else {
         Err(syn::Error::new(expr.span(), "Expect `Path` or `Closure`"))
-    }
-}
-
-pub(crate) fn check_accept_args_type(ty: &Type) -> Result<(), syn::Error> {
-    match ty {
-        Type::Array(TypeArray { elem, .. })
-        | Type::Ptr(TypePtr { elem, .. })
-        | Type::Reference(TypeReference { elem, .. })
-        | Type::Slice(TypeSlice { elem, .. }) => check_accept_args_type(elem),
-
-        Type::Path(TypePath {
-            path: Path { segments, .. },
-            ..
-        }) => {
-            for PathSegment { arguments, .. } in segments {
-                match arguments {
-                    syn::PathArguments::None | syn::PathArguments::Parenthesized(_) => (),
-                    syn::PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                        args,
-                        ..
-                    }) => {
-                        for arg in args {
-                            match arg {
-                                syn::GenericArgument::AssocType(AssocType { ty, .. })
-                                | syn::GenericArgument::Type(ty) => check_accept_args_type(ty)?,
-                                _ => (),
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(())
-        }
-        Type::Tuple(TypeTuple { elems, .. }) => {
-            for elem in elems {
-                check_accept_args_type(elem)?;
-            }
-            Ok(())
-        }
-        _ => Err(syn::Error::new(
-            ty.span(),
-            "`prepare` nonsupport this kind of function argument type",
-        )),
     }
 }
 

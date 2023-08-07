@@ -8,7 +8,6 @@ use syn::{
     TypeReference, WherePredicate,
 };
 
-
 pub struct ArgInfo {
     pub patten: Box<Pat>,
     pub ty: Box<Type>,
@@ -16,7 +15,10 @@ pub struct ArgInfo {
 
 impl ArgInfo {
     fn new(pat: PatType) -> Self {
-        Self { patten: pat.pat, ty:pat.ty }
+        Self {
+            patten: pat.pat,
+            ty: pat.ty,
+        }
     }
 }
 
@@ -235,7 +237,9 @@ impl VisitMut for LifetimeVisitor<'_> {
                 Some(lifetime) if lifetime.ident == "_" => {
                     Lifetime::new(self.symbol, lifetime.span())
                 }
-                Some(lifetime) if lifetime.ident == self.symbol[1..] || lifetime.ident == "static" => {
+                Some(lifetime)
+                    if lifetime.ident == self.symbol[1..] || lifetime.ident == "static" =>
+                {
                     lifetime
                 }
                 lifetime => {
