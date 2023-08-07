@@ -56,7 +56,6 @@ pub fn prepare_macro(
 
     let origin = if *origin {
         quote!(
-            #[allow(dead_code)]
             # item_fn
         )
     } else {
