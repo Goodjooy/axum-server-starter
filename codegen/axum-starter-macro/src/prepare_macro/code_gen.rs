@@ -3,6 +3,8 @@ use darling::ToTokens;
 use crate::prepare_macro::inputs::attr_name::PrepareFnMode;
 use quote::{format_ident, quote};
 use syn::{Lifetime, Stmt, Type};
+use syn::spanned::Spanned;
+use crate::prepare_macro::DEFAULT_LIFETIME_SYMBOL;
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
@@ -13,7 +15,7 @@ pub struct CodeGen<'r> {
     prepare_name: &'r syn::Ident,
     prepare_generic: GenericWithBound<'r>,
 
-    call_args: Vec<ArgInfo<'r>>,
+    call_args: Vec<ArgInfo>,
     fn_body: &'r [Stmt],
     args_lifetime: Option<&'r Lifetime>,
     ret_type: Option<&'r Type>,
@@ -60,8 +62,8 @@ impl<'r> ToTokens for CodeGen<'r> {
         } = self;
 
         let bound_lifetime = match args_lifetime {
-            Some(l) => quote::quote!(#l),
-            None => quote::quote!('r),
+            Some(l) => (*l).clone(),
+            None => Lifetime::new(DEFAULT_LIFETIME_SYMBOL,args_lifetime.span()),
         };
 
         let extra_generic = {
