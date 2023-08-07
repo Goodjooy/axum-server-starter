@@ -74,7 +74,7 @@ fn echo_count() -> impl PrepareStateEffect {
     AddState::new(Arc::new(AtomicUsize::new(0)))
 }
 
-#[prepare(Echo)]
+#[prepare(sync Echo)]
 fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
 where
     B: http_body::Body + Send + 'static,

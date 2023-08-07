@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use syn::{
     punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam, WherePredicate,
+     Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam, WherePredicate,LifetimeParam
 };
 
 use crate::utils::check_accept_args_type;

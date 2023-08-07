@@ -187,6 +187,8 @@ async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
 
+
+
 #[tokio::main]
 async fn main() {
     start().await
@@ -197,7 +199,7 @@ async fn start() {
         .init_logger()
         .expect("Init Logger Failure")
         .convert_state::<MyState>()
-        .set_decorator(Decorator)
+        .prepare_decorator(Decorator)
         .prepare(ShowValue::<_, 11>)
         .prepare_route(C)
         .graceful_shutdown(
@@ -223,9 +225,14 @@ struct MyState {
     on_fly: watch::Receiver<usize>,
 }
 
-struct Decorator;
+#[prepare(sync Decorator)]
+fn logger_decorator(addr:SocketAddr)->LoggerDecorator{
+    LoggerDecorator(addr)
+}
 
-impl PrepareDecorator for Decorator {
+pub struct LoggerDecorator(SocketAddr);
+
+impl PrepareDecorator for LoggerDecorator {
     type OutFut<Fut, T> = LocalBoxFuture<'static, Result<T, PrepareError>>
         where Fut: Future<Output=Result<T, PrepareError>> + 'static,
               T: 'static;
