@@ -64,8 +64,8 @@ impl FromStateCollector for MyState {
     }
 }
 
-#[prepare(box Student 'arg)]
-async fn arr<'arg>(id: i32, name: &'arg String) {
+#[prepare(box origin Student)]
+async fn arr(id: i32, name: &String) {
     println!("my name is {name} id is {id}");
 }
 
@@ -74,7 +74,7 @@ fn echo_count() -> impl PrepareStateEffect {
     AddState::new(Arc::new(AtomicUsize::new(0)))
 }
 
-#[prepare(Echo)]
+#[prepare(sync Echo)]
 fn adding_echo<B, S>() -> impl PrepareRouteEffect<S, B>
 where
     B: http_body::Body + Send + 'static,
@@ -108,7 +108,7 @@ where
 pub struct Config {
     #[provider(transparent)]
     id: i32,
-    #[provider(transparent, ref)]
+    #[provider(transparent, r#ref)]
     name: String,
 }
 

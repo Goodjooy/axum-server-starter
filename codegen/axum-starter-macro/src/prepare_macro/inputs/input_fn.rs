@@ -1,29 +1,30 @@
 use std::ops::Deref;
 
+use crate::prepare_macro::DEFAULT_LIFETIME_SYMBOL;
+use syn::visit_mut::VisitMut;
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, ConstParam, FnArg, Generics, ItemFn, Lifetime,
-    LifetimeDef, Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam, WherePredicate,
+    punctuated::Punctuated, spanned::Spanned, visit_mut, ConstParam, FnArg, Generics, ItemFn,
+    Lifetime, LifetimeParam, Pat, PatType, PredicateType, Stmt, Token, Type, TypeParam,
+    TypeReference, WherePredicate,
 };
 
-use crate::utils::check_accept_args_type;
-
-pub struct ArgInfo<'r> {
-    pub patten: &'r Pat,
-    pub ty: &'r Type,
+pub struct ArgInfo {
+    pub patten: Box<Pat>,
+    pub ty: Box<Type>,
 }
 
-impl<'r> ArgInfo<'r> {
-    fn new(pat_type: &'r PatType) -> Self {
+impl ArgInfo {
+    fn new(pat: PatType) -> Self {
         Self {
-            patten: &pat_type.pat,
-            ty: &pat_type.ty,
+            patten: pat.pat,
+            ty: pat.ty,
         }
     }
 }
 
 pub struct InputFn<'r> {
     pub generic: GenericWithBound<'r>,
-    pub args_type: Vec<ArgInfo<'r>>,
+    pub args_type: Vec<ArgInfo>,
     pub ret: Option<&'r Type>,
     pub fn_body: &'r [Stmt],
 }
@@ -58,11 +59,20 @@ impl<'r> InputFn<'r> {
                 "`prepare` not support fn with Self receiver",
             ))?;
         }
-
-        for arg_types in sig.inputs.iter() {
-            if let FnArg::Typed(PatType { ty, .. }) = arg_types {
-                check_accept_args_type(ty)?;
-            }
+        let lt_symbol = lifetime
+            .as_ref()
+            .map(|lt| lt.to_string())
+            .unwrap_or_else(|| String::from(DEFAULT_LIFETIME_SYMBOL));
+        let mut lifetime_visitor = LifetimeVisitor::new(&lt_symbol);
+        let mut fn_args = sig.inputs.clone();
+        for arg_types in fn_args.iter_mut() {
+            lifetime_visitor.visit_fn_arg_mut(arg_types);
+        }
+        if let Some(err) = lifetime_visitor.failure {
+            Err(syn::Error::new(
+                err.span(),
+                format!("unknown lifetime[{err}]"),
+            ))?;
         }
 
         let generic = GenericWithBound::new(&sig.generics, lifetime)?;
@@ -71,9 +81,8 @@ impl<'r> InputFn<'r> {
             syn::ReturnType::Type(_, ref ty) => Some(ty.deref()),
         };
         Ok(Self {
-            args_type: sig
-                .inputs
-                .iter()
+            args_type: fn_args
+                .into_iter()
                 .filter_map(|input| match input {
                     FnArg::Receiver(_) => None,
                     FnArg::Typed(pat_type) => Some(ArgInfo::new(pat_type)),
@@ -147,7 +156,7 @@ impl<'r> GenericWithBound<'r> {
             let mut lifetime_iter = generic.lifetimes();
             // if has at lest one lifetime, check is the same as provide
             match lifetime_iter.next() {
-                Some(LifetimeDef { lifetime, .. }) if lifetime != lf => {
+                Some(LifetimeParam { lifetime, .. }) if lifetime != lf => {
                     Err(syn::Error::new(
                         lifetime.span(),
                         "`prepare` only support lifetime equal to provide",
@@ -180,5 +189,66 @@ impl<'r> GenericWithBound<'r> {
         };
 
         Ok(this)
+    }
+}
+
+struct LifetimeVisitor<'r> {
+    symbol: &'r str,
+    failure: Option<Lifetime>,
+}
+
+impl<'r> LifetimeVisitor<'r> {
+    fn new(symbol: &'r str) -> Self {
+        Self {
+            symbol,
+            failure: None,
+        }
+    }
+}
+
+impl VisitMut for LifetimeVisitor<'_> {
+    fn visit_lifetime_mut(&mut self, i: &mut Lifetime) {
+        'lt: {
+            if self.failure.is_some() {
+                break 'lt;
+            }
+            let span = i.span();
+            let lifetime = if i.ident == self.symbol[1..] || i.ident == "static" {
+                i.clone()
+            } else if i.ident == "_" {
+                Lifetime::new(self.symbol, span)
+            } else {
+                self.failure = i.clone().into();
+                break 'lt;
+            };
+
+            *i = lifetime;
+        }
+        visit_mut::visit_lifetime_mut(self, i);
+    }
+
+    fn visit_type_reference_mut(&mut self, i: &mut TypeReference) {
+        'lt: {
+            if self.failure.is_some() {
+                break 'lt;
+            }
+            let lifetime = match i.lifetime.clone() {
+                None => Lifetime::new(self.symbol, i.lifetime.span()),
+                Some(lifetime) if lifetime.ident == "_" => {
+                    Lifetime::new(self.symbol, lifetime.span())
+                }
+                Some(lifetime)
+                    if lifetime.ident == self.symbol[1..] || lifetime.ident == "static" =>
+                {
+                    lifetime
+                }
+                lifetime => {
+                    self.failure = lifetime;
+                    break 'lt;
+                }
+            };
+            let _ = i.lifetime.insert(lifetime);
+        };
+        visit_mut::visit_type_reference_mut(self, i);
     }
 }

@@ -1,18 +1,21 @@
 use darling::ToTokens;
 
-use quote::format_ident;
+use crate::prepare_macro::inputs::attr_name::PrepareFnMode;
+use crate::prepare_macro::DEFAULT_LIFETIME_SYMBOL;
+use quote::{format_ident, quote};
+use syn::spanned::Spanned;
 use syn::{Lifetime, Stmt, Type};
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
 pub struct CodeGen<'r> {
     may_fall: bool,
-    boxed: bool,
+    prepare_mode: PrepareFnMode,
 
     prepare_name: &'r syn::Ident,
     prepare_generic: GenericWithBound<'r>,
 
-    call_args: Vec<ArgInfo<'r>>,
+    call_args: Vec<ArgInfo>,
     fn_body: &'r [Stmt],
     args_lifetime: Option<&'r Lifetime>,
     ret_type: Option<&'r Type>,
@@ -22,7 +25,7 @@ impl<'r> CodeGen<'r> {
     pub fn new(
         prepare_name: &'r syn::Ident,
         arg_lifetime: &'r Option<Lifetime>,
-        boxed: bool,
+        prepare_mode: PrepareFnMode,
         may_fall: bool,
         InputFn {
             args_type,
@@ -36,7 +39,7 @@ impl<'r> CodeGen<'r> {
             call_args: args_type,
             args_lifetime: arg_lifetime.as_ref(),
             prepare_generic: generic,
-            boxed,
+            prepare_mode,
             may_fall,
             ret_type: ret,
             fn_body,
@@ -51,7 +54,7 @@ impl<'r> ToTokens for CodeGen<'r> {
             call_args,
             args_lifetime,
             prepare_generic,
-            boxed,
+            prepare_mode,
             may_fall,
             ret_type,
             fn_body,
@@ -59,8 +62,8 @@ impl<'r> ToTokens for CodeGen<'r> {
         } = self;
 
         let bound_lifetime = match args_lifetime {
-            Some(l) => quote::quote!(#l),
-            None => quote::quote!('r),
+            Some(l) => (*l).clone(),
+            None => Lifetime::new(DEFAULT_LIFETIME_SYMBOL, args_lifetime.span()),
         };
 
         let extra_generic = {
@@ -132,23 +135,33 @@ impl<'r> ToTokens for CodeGen<'r> {
             )
         };
 
-        let async_boxed = if *boxed {
-            quote::quote! {
-                ::std::boxed::Box::pin(
-                    async move {
+        let async_boxed = match prepare_mode {
+            PrepareFnMode::AsyncBoxed => {
+                quote::quote! {
+                    ::std::boxed::Box::pin(
+                        async move {
+                            #execute_prepare
+                            #mapped_func_call
+                        }
+                    )
+                }
+            }
+            PrepareFnMode::Async => {
+                quote::quote! {
+                    #execute_prepare
+                    #mapped_func_call
+                }
+            }
+            PrepareFnMode::Sync => {
+                quote::quote! {
+                    let ret = {
                         #execute_prepare
                         #mapped_func_call
-                    }
-                )
-            }
-        } else {
-            quote::quote! {
-                #execute_prepare
-                #mapped_func_call
-
+                    };
+                    ::axum_starter::ready(ret)
+                }
             }
         };
-
         // ret type
         let ret_type = match ret_type {
             Some(ty) => quote::quote!(#ty),
@@ -166,22 +179,28 @@ impl<'r> ToTokens for CodeGen<'r> {
             )
         };
 
-        let boxed_ret = if *boxed {
-            quote::quote!(
-                ::std::pin::Pin<
-                    ::std::boxed::Box<
-                        dyn ::core::future::Future<Output = #ret_type>,
-                    >,
-                >
-            )
-        } else {
-            quote::quote!(#ret_type)
+        let boxed_ret = match prepare_mode {
+            PrepareFnMode::AsyncBoxed => {
+                quote::quote!(
+                    ::std::pin::Pin<
+                        ::std::boxed::Box<
+                            dyn ::core::future::Future<Output = #ret_type>,
+                        >,
+                    >
+                )
+            }
+            PrepareFnMode::Async => {
+                quote::quote!(#ret_type)
+            }
+            PrepareFnMode::Sync => {
+                quote!(
+                    ::axum_starter::Ready<#ret_type>
+                )
+            }
         };
-
-        let boxed_async_signal = if *boxed {
-            None
-        } else {
-            Some(quote::quote!(async))
+        let boxed_async_signal = match prepare_mode {
+            PrepareFnMode::AsyncBoxed | PrepareFnMode::Sync => None,
+            _ => Some(quote::quote!(async)),
         };
 
         // impl prepare
