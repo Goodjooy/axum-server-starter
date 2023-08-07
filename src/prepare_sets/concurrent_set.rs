@@ -1,6 +1,5 @@
 #[allow(unused_imports)]
 use std::any::type_name;
-use std::marker::PhantomData;
 use std::{future::IntoFuture, sync::Arc};
 
 use futures::{
@@ -24,20 +23,20 @@ use super::{BoxFuture, StateContainerFuture, StateContainerResult};
 ///
 /// ## Note
 /// the sync part of [Prepare] will be run immediately
-pub struct ConcurrentPrepareSet<C, Decorator, T = StateContainerResult> {
+pub struct ConcurrentPrepareSet<'d, C, Decorator, T = StateContainerResult> {
     prepare_fut: BoxFuture<T>,
     configure: Arc<C>,
-    __phantom_decorator: PhantomData<Decorator>,
+    decorator: &'d Decorator,
 }
 
-impl<C, Decorator> ConcurrentPrepareSet<C, Decorator> {
+impl<'d, C, Decorator> ConcurrentPrepareSet<'d, C, Decorator> {
     /// get the [Future]
     pub(crate) fn into_internal_future(self) -> StateContainerFuture {
         self.prepare_fut
     }
 }
 
-impl<C, Decorator> ConcurrentPrepareSet<C, Decorator>
+impl<'d, C, Decorator> ConcurrentPrepareSet<'d, C, Decorator>
 where
     C: 'static,
     Decorator: PrepareDecorator,
@@ -45,7 +44,7 @@ where
     /// join a [Prepare] into concurrent execute set
     ///
     /// concurrent only support state prepare
-    pub fn join_state<P>(self, prepare: P) -> ConcurrentPrepareSet<C, Decorator>
+    pub fn join_state<P>(self, prepare: P) -> ConcurrentPrepareSet<'d, C, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareStateEffect,
@@ -63,7 +62,7 @@ where
                 .prepare(configure)
                 .into_future()
                 .map_err(PrepareError::to_prepare_error::<P, _>)
-                .pipe(Decorator::decorator),
+                .pipe(|fut| self.decorator.prepare_decorator::<C, P, _>(fut)),
         )
         .map(|(l, r)| {
             Ok({
@@ -79,12 +78,12 @@ where
         ConcurrentPrepareSet {
             prepare_fut,
             configure: self.configure,
-            __phantom_decorator: PhantomData,
+            decorator: self.decorator,
         }
     }
 
     /// join a [Prepare] without effect
-    pub fn join<P>(self, prepare: P) -> ConcurrentPrepareSet<C, Decorator>
+    pub fn join<P>(self, prepare: P) -> ConcurrentPrepareSet<'d, C, Decorator>
     where
         P: Prepare<C, Effect = ()> + 'static,
     {
@@ -101,7 +100,7 @@ where
                 .prepare(configure)
                 .into_future()
                 .map_err(PrepareError::to_prepare_error::<P, _>)
-                .pipe(Decorator::decorator),
+                .pipe(|fut| self.decorator.prepare_decorator::<C, P, _>(fut)),
         )
         .map(|(l, r)| {
             r?;
@@ -112,17 +111,17 @@ where
         ConcurrentPrepareSet {
             prepare_fut,
             configure: self.configure,
-            __phantom_decorator: PhantomData,
+            decorator: self.decorator,
         }
     }
 }
 
-impl<C: 'static, Decorator> ConcurrentPrepareSet<C, Decorator> {
-    pub(crate) fn new(configure: Arc<C>) -> Self {
+impl<'d, C: 'static, Decorator> ConcurrentPrepareSet<'d, C, Decorator> {
+    pub(crate) fn new(configure: Arc<C>, decorator: &'d Decorator) -> Self {
         Self {
             prepare_fut: ok(StateCollector::new()).boxed_local(),
             configure,
-            __phantom_decorator: PhantomData,
+            decorator,
         }
     }
 }

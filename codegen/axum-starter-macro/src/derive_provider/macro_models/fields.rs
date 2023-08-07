@@ -21,7 +21,7 @@ pub struct ProviderField {
     #[darling(default)]
     skip: bool,
 
-    #[darling(default, rename = "ref")]
+    #[darling(default, rename = "r#ref")]
     provide_ref: bool,
 
     #[darling(default)]

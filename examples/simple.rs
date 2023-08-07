@@ -29,6 +29,7 @@ use futures::future::LocalBoxFuture;
 use log::info;
 use std::slice::Iter;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
+
 /// configure for server starter
 #[derive(Debug, Provider, Configure)]
 #[conf(
@@ -38,7 +39,7 @@ use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 )]
 #[provider(transparent)]
 struct Configure {
-    #[provider(ref)]
+    #[provider(r#ref)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,
@@ -67,13 +68,13 @@ impl Configure {
 
 /// if need ref args ,adding a lifetime
 #[prepare(box ShowFoo 'arg)]
-fn show_foo<S: AsRef<str> + ?Sized>(f: &'arg S) {
+fn show_foo<S: AsRef<str> + ?Sized>(f: &S) {
     println!("this is Foo {}", f.as_ref())
 }
 
 /// if prepare procedure may occur Error, using `?` after
 /// Prepare task Name
-#[prepare(Sleeping?)]
+#[prepare(Sleeping ?)]
 async fn sleep() -> Result<(), Infallible> {
     tokio::time::sleep(Duration::from_secs(2)).await;
     println!("sleep down 2s");
@@ -114,7 +115,7 @@ where
     )
 }
 
-#[prepare(box C?)]
+#[prepare(box C ?)]
 fn routers<S, B>() -> Result<impl PrepareRouteEffect<S, B>, Infallible>
 where
     S: Clone + Send + Sync + 'static,
@@ -169,7 +170,6 @@ fn on_fly_state() -> InFlight {
                 let sender = sender.clone();
                 async move {
                     sender.send(count).await.ok();
-                    ()
                 }
             })
             .await
@@ -196,7 +196,7 @@ async fn start() {
         .init_logger()
         .expect("Init Logger Failure")
         .convert_state::<MyState>()
-        .set_decorator(Decorator)
+        .prepare_decorator(Decorator)
         .prepare(ShowValue::<_, 11>)
         .prepare_route(C)
         .graceful_shutdown(
@@ -209,7 +209,7 @@ async fn start() {
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState, Body>, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
-        .prepare_start()
+        .preparing()
         .await
         .expect("Prepare for starting server failure ")
         .launch()
@@ -222,20 +222,27 @@ struct MyState {
     on_fly: watch::Receiver<usize>,
 }
 
-struct Decorator;
+#[prepare(sync Decorator)]
+fn logger_decorator(addr: SocketAddr) -> LoggerDecorator {
+    LoggerDecorator(addr)
+}
 
-impl PrepareDecorator for Decorator {
-    type OutFut<'fut, Fut, T> = LocalBoxFuture<'fut, Result<T, PrepareError>> where Fut: Future<Output=Result<T, PrepareError>> + 'fut, T: 'static;
+pub struct LoggerDecorator(SocketAddr);
 
-    fn decorator<'fut, Fut, T>(in_fut: Fut) -> Self::OutFut<'fut, Fut, T>
+impl PrepareDecorator for LoggerDecorator {
+    type OutFut<Fut, T> = LocalBoxFuture<'static, Result<T, PrepareError>>
+        where Fut: Future<Output=Result<T, PrepareError>> + 'static,
+              T: 'static;
+
+    fn decorator<Fut, T>(&self, src: &'static str, in_fut: Fut) -> Self::OutFut<Fut, T>
     where
-        Fut: Future<Output = Result<T, PrepareError>> + 'fut,
+        Fut: Future<Output = Result<T, PrepareError>> + 'static,
         T: 'static,
     {
-        Box::pin(async {
+        Box::pin(async move {
             match in_fut.await {
                 Ok(ret) => {
-                    info!("prepare ret type is {}", type_name::<T>());
+                    info!("prepare[{src}] ret type is {}", type_name::<T>());
                     Ok(ret)
                 }
                 err @ Err(_) => err,
