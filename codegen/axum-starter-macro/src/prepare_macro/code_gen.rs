@@ -1,8 +1,8 @@
 use darling::ToTokens;
 
+use crate::prepare_macro::inputs::attr_name::PrepareFnMode;
 use quote::{format_ident, quote};
 use syn::{Lifetime, Stmt, Type};
-use crate::prepare_macro::inputs::attr_name::PrepareFnMode;
 
 use super::inputs::input_fn::{ArgInfo, GenericWithBound, InputFn};
 
@@ -136,21 +136,21 @@ impl<'r> ToTokens for CodeGen<'r> {
         let async_boxed = match prepare_mode {
             PrepareFnMode::AsyncBoxed => {
                 quote::quote! {
-                ::std::boxed::Box::pin(
-                    async move {
-                        #execute_prepare
-                        #mapped_func_call
-                    }
-                )
-            }
+                    ::std::boxed::Box::pin(
+                        async move {
+                            #execute_prepare
+                            #mapped_func_call
+                        }
+                    )
+                }
             }
             PrepareFnMode::Async => {
                 quote::quote! {
                     #execute_prepare
                     #mapped_func_call
                 }
-            },
-            PrepareFnMode::Sync=>{
+            }
+            PrepareFnMode::Sync => {
                 quote::quote! {
                     let ret = {
                         #execute_prepare
@@ -180,12 +180,12 @@ impl<'r> ToTokens for CodeGen<'r> {
         let boxed_ret = match prepare_mode {
             PrepareFnMode::AsyncBoxed => {
                 quote::quote!(
-                ::std::pin::Pin<
-                    ::std::boxed::Box<
-                        dyn ::core::future::Future<Output = #ret_type>,
-                    >,
-                >
-            )
+                    ::std::pin::Pin<
+                        ::std::boxed::Box<
+                            dyn ::core::future::Future<Output = #ret_type>,
+                        >,
+                    >
+                )
             }
             PrepareFnMode::Async => {
                 quote::quote!(#ret_type)
@@ -197,12 +197,8 @@ impl<'r> ToTokens for CodeGen<'r> {
             }
         };
         let boxed_async_signal = match prepare_mode {
-            PrepareFnMode::AsyncBoxed | PrepareFnMode::Sync => {
-                None
-            }
-            _ => {
-                Some(quote::quote!(async))
-            }
+            PrepareFnMode::AsyncBoxed | PrepareFnMode::Sync => None,
+            _ => Some(quote::quote!(async)),
         };
 
         // impl prepare

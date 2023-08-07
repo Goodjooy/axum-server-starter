@@ -7,11 +7,11 @@ pub struct PrepareName {
     pub(in crate::prepare_macro) lt: Option<Lifetime>,
 }
 
-#[derive(Debug,Clone,Copy)]
-pub enum PrepareFnMode{
+#[derive(Debug, Clone, Copy)]
+pub enum PrepareFnMode {
     Async,
     AsyncBoxed,
-    Sync
+    Sync,
 }
 
 use syn::custom_keyword;
@@ -34,11 +34,16 @@ impl Parse for PrepareName {
         } else {
             false
         };
-        let prepare_mode = match (need_boxed,sync) {
-            (true,false)=>PrepareFnMode::AsyncBoxed,
-            (false,true)=>PrepareFnMode::Sync,
-            (false,false)=>PrepareFnMode::Async,
-            (true,true)=> return Err(syn::Error::new(sync.span(), "prepare can only one of `box` or `sync`"))
+        let prepare_mode = match (need_boxed, sync) {
+            (true, false) => PrepareFnMode::AsyncBoxed,
+            (false, true) => PrepareFnMode::Sync,
+            (false, false) => PrepareFnMode::Async,
+            (true, true) => {
+                return Err(syn::Error::new(
+                    sync.span(),
+                    "prepare can only one of `box` or `sync`",
+                ))
+            }
         };
 
         let ident = input.parse::<syn::Ident>()?;

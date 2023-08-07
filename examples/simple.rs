@@ -187,8 +187,6 @@ async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
 
-
-
 #[tokio::main]
 async fn main() {
     start().await
@@ -226,7 +224,7 @@ struct MyState {
 }
 
 #[prepare(sync Decorator)]
-fn logger_decorator(addr:SocketAddr)->LoggerDecorator{
+fn logger_decorator(addr: SocketAddr) -> LoggerDecorator {
     LoggerDecorator(addr)
 }
 

@@ -1,8 +1,8 @@
 use crate::{Prepare, PrepareError, ServerPrepare};
+use futures::future::Ready;
 use std::any::type_name;
 use std::convert::Infallible;
 use std::future::Future;
-use futures::future::Ready;
 
 impl<C, Effect, Log, State, Graceful, Decorator>
     ServerPrepare<C, Effect, Log, State, Graceful, Decorator>
@@ -53,13 +53,19 @@ impl<C, Effect, Log, State, Graceful, Decorator>
     /// you'd better using [`set_decorator`](Self::set_decorator)
     ///
     ///
-    pub fn prepare_decorator<D,P>(self,prepare:P)->ServerPrepare<C, Effect, Log, State, Graceful, D>
-    where P:Prepare<C,Effect=D,Error=Infallible,Future=Ready<Result<D,Infallible>>>,
-          C:'static,
-            D:PrepareDecorator
-
+    pub fn prepare_decorator<D, P>(
+        self,
+        prepare: P,
+    ) -> ServerPrepare<C, Effect, Log, State, Graceful, D>
+    where
+        P: Prepare<C, Effect = D, Error = Infallible, Future = Ready<Result<D, Infallible>>>,
+        C: 'static,
+        D: PrepareDecorator,
     {
-        let decorator = prepare.prepare(self.prepares.get_configure()).into_inner().unwrap();
+        let decorator = prepare
+            .prepare(self.prepares.get_configure())
+            .into_inner()
+            .unwrap();
         self.set_decorator(decorator)
     }
 }

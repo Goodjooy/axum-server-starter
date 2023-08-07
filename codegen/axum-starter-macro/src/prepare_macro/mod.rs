@@ -38,8 +38,6 @@ pub fn prepare_macro(
         }
     }
 
-
-
     let input = InputFn::from_fn_item(&item_fn, lt.as_ref())?;
     let code_gen = CodeGen::new(ident, lt, *prepare_mode, *may_fall, input);
 
