@@ -147,7 +147,7 @@ impl<'r> GenericWithBound<'r> {
             let mut lifetime_iter = generic.lifetimes();
             // if has at lest one lifetime, check is the same as provide
             match lifetime_iter.next() {
-                Some(LifetimeDef { lifetime, .. }) if lifetime != lf => {
+                Some(LifetimeParam{lifetime,..}) if lifetime != lf => {
                     Err(syn::Error::new(
                         lifetime.span(),
                         "`prepare` only support lifetime equal to provide",
@@ -182,3 +182,4 @@ impl<'r> GenericWithBound<'r> {
         Ok(this)
     }
 }
+

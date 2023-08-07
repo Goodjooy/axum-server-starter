@@ -11,7 +11,7 @@ pub struct ProviderDerive {
     ident: Ident,
     #[darling(default)]
     transparent: bool,
-    #[darling(default, rename = "ref")]
+    #[darling(default, rename = "r#ref")]
     reference: bool,
     data: darling::ast::Data<util::Ignored, ProviderField>,
 }

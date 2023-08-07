@@ -39,7 +39,7 @@ use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 )]
 #[provider(transparent)]
 struct Configure {
-    #[provider(ref)]
+    #[provider(r#ref)]
     #[provider(map_to(ty = "&'s str", by = "String::as_str", lifetime = "'s"))]
     #[provider(map_to(ty = "String", by = "Clone::clone"))]
     foo: String,

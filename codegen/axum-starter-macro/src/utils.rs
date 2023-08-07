@@ -1,8 +1,5 @@
 use heck::ToUpperCamelCase;
-use syn::{
-    spanned::Spanned, AngleBracketedGenericArguments, Binding, Expr, Path, PathSegment, Type,
-    TypeArray, TypePath, TypePtr, TypeReference, TypeSlice, TypeTuple,
-};
+use syn::{spanned::Spanned, AngleBracketedGenericArguments, Expr, Path, PathSegment, Type, TypeArray, TypePath, TypePtr, TypeReference, TypeSlice, TypeTuple, AssocType};
 
 pub(crate) fn snake_to_upper(src: &str) -> String {
     ToUpperCamelCase::to_upper_camel_case(src)
@@ -27,29 +24,23 @@ pub fn check_callable_expr(expr: &Expr) -> Result<(), syn::Error> {
 
 pub(crate) fn check_accept_args_type(ty: &Type) -> Result<(), syn::Error> {
     match ty {
-        Type::Array(TypeArray { elem, .. })
-        | Type::Ptr(TypePtr { elem, .. })
-        | Type::Reference(TypeReference { elem, .. })
-        | Type::Slice(TypeSlice { elem, .. }) => check_accept_args_type(elem),
+        Type::Array(TypeArray { elem, .. }) | Type::Ptr(TypePtr { elem, .. }) | Type::Reference(TypeReference { elem, .. }) | Type::Slice(TypeSlice { elem, .. }) => check_accept_args_type(elem),
 
         Type::Path(TypePath {
-            path: Path { segments, .. },
-            ..
-        }) => {
+                       path: Path { segments, .. },
+                       ..
+                   }) => {
             for PathSegment { arguments, .. } in segments {
                 match arguments {
                     syn::PathArguments::None | syn::PathArguments::Parenthesized(_) => (),
                     syn::PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                        args,
-                        ..
-                    }) => {
+                                                           args,
+                                                           ..
+                                                       }) => {
                         for arg in args {
                             match arg {
-                                syn::GenericArgument::Binding(Binding { ty, .. })
-                                | syn::GenericArgument::Type(ty) => check_accept_args_type(ty)?,
-                                syn::GenericArgument::Lifetime(_)
-                                | syn::GenericArgument::Const(_)
-                                | syn::GenericArgument::Constraint(_) => todo!(),
+                                syn::GenericArgument::AssocType(AssocType { ty, .. }) | syn::GenericArgument::Type(ty) => check_accept_args_type(ty)?,
+                                _ => (),
                             }
                         }
                     }
@@ -83,3 +74,4 @@ mod test {
         assert_eq!("AccBccDcc", snake_to_upper("AccBccDcc"));
     }
 }
+

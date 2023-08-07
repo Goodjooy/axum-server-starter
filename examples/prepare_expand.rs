@@ -108,7 +108,7 @@ where
 pub struct Config {
     #[provider(transparent)]
     id: i32,
-    #[provider(transparent, ref)]
+    #[provider(transparent, r#ref)]
     name: String,
 }
 
