@@ -1,7 +1,5 @@
 use heck::ToUpperCamelCase;
-use syn::{
-    spanned::Spanned, Expr,
-};
+use syn::{spanned::Spanned, Expr};
 
 pub(crate) fn snake_to_upper(src: &str) -> String {
     ToUpperCamelCase::to_upper_camel_case(src)
