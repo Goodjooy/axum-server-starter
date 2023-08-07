@@ -144,13 +144,32 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// named `SeaConn`, just using like `#[prepare(SeaConn)]`
 ///
 /// if your function argument contain reference or other types witch need a lifetime, just add the lifetime to the macro arguments list,
-/// like this
+/// like this.
+///
 /// ```rust
 /// #[prepare(Foo 'f)]
 /// fn prepare_foo(foo_name: &'f String){
 ///     // do somethings
 /// }
 /// ```
+/// Or,you can not provide any lifetime symbol, the macro will automatic find all needing lifetime places and giving a default symbol
+///
+/// ```rust
+/// #[prepare(Foo)]
+/// fn prepare_foo(foo_name: &String){
+///     // do somethings
+/// }
+/// ```
+///
+/// Or only give lifetime symbol in macro input. The macro will auto replace `'_` into `'arg` if necessary
+///
+/// ```rust
+/// #[prepare(Foo 'arg)]
+/// fn prepare_foo(foo_name: &String){
+///     // do somethings
+/// }
+/// ```
+///
 /// some times store `Future` on stack may cause ***Stack Overflow***, you can using `box` before generate name
 /// make the return type became `Pin<Box<dyn Future>>`
 ///
@@ -160,6 +179,27 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 ///     // do something may take place large space
 /// }
 /// ```
+///
+/// if you want a `Prepare` return `Ready`, or in other word, a sync `Prepare`,you can use `sync` before the Ident.
+/// note that `box` and `sync` cannot use in the same time
+///
+/// ```rust
+/// #[prepare(sync Foo)]
+/// fn prepare_foo(){
+///     // do something not using `await`
+/// }
+/// ```
+///
+/// By default, the macro will not keep the origin function exist, if you want use that original function, using `origin`,
+/// the `origin` is after the `box` or `sync`, but before the Ident
+///
+///```rust
+/// #[prepare(sync origin Foo)]
+/// fn prepare_foo(){
+///     // do something not using `await`
+/// }
+/// ```
+///```
 #[proc_macro_attribute]
 pub fn prepare(
     attrs: proc_macro::TokenStream,
