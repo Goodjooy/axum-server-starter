@@ -1,6 +1,6 @@
 [package]
 name = "axum-starter-macro"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 authors = ["FrozenString<frozenstringstable@gmail.com>"]
 description = "A help crate for simplify the code of starting axum server "
