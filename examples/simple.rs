@@ -27,7 +27,6 @@ use tokio::sync::{mpsc, watch};
 use futures::future::LocalBoxFuture;
 use log::info;
 use std::slice::Iter;
-use axum::body::Body;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 
 /// configure for server starter

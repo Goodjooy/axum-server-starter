@@ -1,6 +1,5 @@
 mod prepare;
 
-use http_body::Body;
 use tower::{
     layer::util::{Identity, Stack},
     ServiceBuilder,
@@ -88,7 +87,7 @@ impl<R, L> EffectContainer<R, L> {
         self
     }
 
-    pub(crate) fn set_route<S,  E>(self, effect: E) -> EffectContainer<(E, R), L>
+    pub(crate) fn set_route<S, E>(self, effect: E) -> EffectContainer<(E, R), L>
     where
         E: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,

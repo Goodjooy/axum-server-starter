@@ -139,6 +139,7 @@ impl<'r> ToTokens for ImplInitLog<'r> {
     }
 }
 
+#[allow(dead_code)]
 pub struct ImplServerEffect<'r> {
     ident: &'r syn::Ident,
     func: Option<&'r Path>,

@@ -1,6 +1,5 @@
 use axum::Router;
 
-
 /// prepare side effect of [Router](Router)
 pub trait PrepareRouteEffect<S>: 'static + Sized {
     fn set_route(self, route: Router<S>) -> Router<S>

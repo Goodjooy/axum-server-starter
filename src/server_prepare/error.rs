@@ -40,5 +40,5 @@ pub enum PrepareStartError {
     /// state convent error
     State(#[from] TypeNotInState),
     #[error(transparent)]
-    IO(#[from]std::io::Error)
+    IO(#[from] std::io::Error),
 }

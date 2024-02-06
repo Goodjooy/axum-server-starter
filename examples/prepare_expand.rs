@@ -1,26 +1,42 @@
-use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
 use axum::{
     extract::{FromRef, Path, State},
     routing::get,
 };
 use axum_starter_macro::Configure;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 
 use futures::FutureExt;
 use log::Level;
 use tokio::signal::ctrl_c;
 
-use axum_starter::{prepare, router::Route, state::AddState, FromStateCollector, PrepareRouteEffect, PrepareStateEffect, Provider, ServerPrepare, StateCollector, TypeNotInState, ServeAddress};
+use axum_starter::{
+    prepare, router::Route, state::AddState, FromStateCollector, PrepareRouteEffect,
+    PrepareStateEffect, Provider, ServeAddress, ServerPrepare, StateCollector, TypeNotInState,
+};
 
 #[tokio::main]
 async fn main() {
     ServerPrepare::with_config(Config {
         id: 11,
         name: "Str".to_string(),
-    }).init_logger().unwrap_or_else(|e| panic!("init logger panic :{e}")).prepare(Student).prepare_state(EchoState).prepare_route(Echo).graceful_shutdown(ctrl_c().map(|_| ())).convert_state::<MyState>().preparing().await.expect("").launch().await.expect("");
+    })
+    .init_logger()
+    .unwrap_or_else(|e| panic!("init logger panic :{e}"))
+    .prepare(Student)
+    .prepare_state(EchoState)
+    .prepare_route(Echo)
+    .graceful_shutdown(ctrl_c().map(|_| ()))
+    .convert_state::<MyState>()
+    .preparing()
+    .await
+    .expect("")
+    .launch()
+    .await
+    .expect("");
 }
 
 #[derive(Debug, Clone)]
@@ -54,8 +70,10 @@ fn echo_count() -> impl PrepareStateEffect {
 
 #[prepare(sync Echo)]
 fn adding_echo<S>() -> impl PrepareRouteEffect<S>
-    where S: Clone + Send + Sync + 'static,
-          Arc<AtomicUsize>: FromRef<S>, {
+where
+    S: Clone + Send + Sync + 'static,
+    Arc<AtomicUsize>: FromRef<S>,
+{
     (
         Route::new(
             "/:path",
@@ -72,10 +90,14 @@ fn adding_echo<S>() -> impl PrepareRouteEffect<S>
 }
 
 #[derive(Debug, Provider, Configure)]
-#[conf(logger(error = "log::SetLoggerError",
-func = "||simple_logger::init_with_level(Level::Info)",
-associate),
-server)]
+#[conf(
+    logger(
+        error = "log::SetLoggerError",
+        func = "||simple_logger::init_with_level(Level::Info)",
+        associate
+    ),
+    server
+)]
 pub struct Config {
     #[provider(transparent)]
     id: i32,
@@ -90,6 +112,3 @@ impl ServeAddress for Config {
         SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8000)
     }
 }
-
-
-

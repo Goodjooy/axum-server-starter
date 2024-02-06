@@ -75,15 +75,12 @@ where
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareRouteEffect]
-    pub(crate) fn then_route<P, S>(
-        self,
-        prepare: P,
-    ) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
+    pub(crate) fn then_route<P, S>(self, prepare: P) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
     where
         P: Prepare<C> + 'static,
         P::Effect: PrepareRouteEffect<S>,
         P::Error: 'static,
-        R: PrepareRouteEffect<S, >,
+        R: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
     {
         debug!(

@@ -16,7 +16,7 @@ impl<S> Route<S> {
     }
 }
 
-impl<S: 'static, > PrepareRouteEffect<S> for Route<S> {
+impl<S: 'static> PrepareRouteEffect<S> for Route<S> {
     fn set_route(self, route: Router<S>) -> Router<S>
     where
         S: Clone + Send + Sync + 'static,
@@ -91,7 +91,7 @@ impl<R, T> Fallback<R, T> {
         }
     }
 }
-impl<S,  R, T> PrepareRouteEffect<S> for Fallback<R, T>
+impl<S, R, T> PrepareRouteEffect<S> for Fallback<R, T>
 where
     R: Handler<T, S>,
     T: 'static,

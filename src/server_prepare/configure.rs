@@ -1,15 +1,13 @@
 use std::{error, io};
 
-use std::net::{SocketAddr};
 use futures::future::LocalBoxFuture;
 use futures::FutureExt;
 use hyper_util::server::conn::auto::Builder;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
-
 
 /// binding address provided by [ServeAddress]
 pub trait BindServe: ServeAddress {
-
     fn bind(&self) -> LocalBoxFuture<io::Result<TcpListener>> {
         let addr = ServeAddress::get_address(self).into();
         TcpListener::bind(addr).boxed_local()
@@ -35,13 +33,8 @@ pub trait LoggerInitialization {
 }
 
 /// change the server configure
-#[deprecated(
-    since = "0.9.0",
-    note = "axum current not support edit server"
-)]
-pub trait ConfigureServerEffect
-
-{
+#[deprecated(since = "0.9.0", note = "axum current not support edit server")]
+pub trait ConfigureServerEffect {
     fn effect_server<E>(&self, server: Builder<E>) -> Builder<E> {
         server
     }

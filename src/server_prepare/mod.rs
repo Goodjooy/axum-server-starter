@@ -1,12 +1,17 @@
 #[allow(unused_imports)]
 use std::any::type_name;
-use std::{convert::Infallible, io, marker::{PhantomData, Send}, sync::Arc};
 use std::future::IntoFuture;
+use std::{
+    convert::Infallible,
+    io,
+    marker::{PhantomData, Send},
+    sync::Arc,
+};
 
+use axum::body::Body;
 use axum::{body::Bytes, routing::Route, BoxError, Router};
 use futures::Future;
-use hyper::{ Request, Response};
-use axum::body::Body;
+use hyper::{Request, Response};
 use tap::Pipe;
 
 use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
@@ -19,11 +24,7 @@ use crate::{
 };
 
 pub use self::{
-    configure::{
-        BindServe,
-          EmptyDecorator, LoggerInitialization, PrepareDecorator,
-        ServeAddress,
-    },
+    configure::{BindServe, EmptyDecorator, LoggerInitialization, PrepareDecorator, ServeAddress},
     error::{PrepareError, PrepareStartError},
 };
 use self::{
@@ -143,7 +144,7 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
     >
     where
         // config
-        C:  BindServe,
+        C: BindServe,
         // middleware
         L: Send + 'static,
         ServiceBuilder<L>: Layer<Route> + Clone,
@@ -181,10 +182,8 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
             debug!(effect = "Graceful Shutdown");
             let graceful = self.graceful.get_graceful();
 
-
             debug!(effect = "Server");
-            let listener = configure
-                .bind().await?;
+            let listener = configure.bind().await?;
             let server = axum::serve(listener, router);
             debug!(effect = "All Done");
             info!(
@@ -193,7 +192,9 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
             );
 
             Ok(match graceful {
-                Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut).into_future()),
+                Some(fut) => {
+                    ServerReady::Graceful(server.with_graceful_shutdown(fut).into_future())
+                }
                 None => ServerReady::Server(server.into_future()),
             })
         }

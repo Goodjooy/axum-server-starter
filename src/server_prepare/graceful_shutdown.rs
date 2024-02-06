@@ -7,7 +7,7 @@ pub struct Graceful<Fut>(Fut);
 
 impl<Fut> FetchGraceful for Graceful<Fut>
 where
-    Fut: Future<Output = ()>+ Send + 'static,
+    Fut: Future<Output = ()> + Send + 'static,
 {
     type Future = Fut;
 
