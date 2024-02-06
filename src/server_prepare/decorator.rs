@@ -9,7 +9,7 @@ impl<C, Effect, Log, State, Graceful, Decorator>
 {
     /// Add Decorator apply on every prepare [`Future`]
     ///
-    /// This [`PrepareDecorator`] result will effect all following prepares
+    /// This [`PrepareDecorator`] result will affect all following prepares
     ///
     /// this will overwrite old [`PrepareDecorator`], combine multiply [`PrepareDecorator`] is **Not**
     ///support. Manual writing combining code instead
@@ -32,7 +32,7 @@ impl<C, Effect, Log, State, Graceful, Decorator>
     /// the [`Prepare`] task must be a sync task, in another word, the [`Prepare::Future`] should to
     /// be [`Ready`]
     ///
-    /// This [`PrepareDecorator`] result will effect all following prepares
+    /// This [`PrepareDecorator`] result will affect all following prepares
     ///
     /// If you using [`prepare`](axum_starter_macro::prepare),
     /// you can mark the [`Prepare`] task as `sync`.

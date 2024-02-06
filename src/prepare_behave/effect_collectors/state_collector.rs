@@ -11,7 +11,7 @@ impl BitAnd for StateCollector {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0.into_iter().chain(rhs.0.into_iter()).collect())
+        Self(self.0.into_iter().chain(rhs.0).collect())
     }
 }
 

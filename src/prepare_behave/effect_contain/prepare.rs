@@ -9,14 +9,13 @@ use crate::{
     PrepareDecorator, PrepareError,
 };
 use futures::TryFutureExt;
-use http_body::Body;
 use tap::Pipe;
 use tower::layer::util::Stack;
 
 use super::EffectContainer;
 
 impl<R, L> EffectContainer<R, L> {
-    pub(crate) async fn then_route<D, S, B, C, P>(
+    pub(crate) async fn then_route<D, S, C, P>(
         self,
         prepare: P,
         configure: Arc<C>,
@@ -26,8 +25,7 @@ impl<R, L> EffectContainer<R, L> {
         D: PrepareDecorator,
         C: 'static,
         P: Prepare<C>,
-        B: Body + 'static + Send,
-        P::Effect: PrepareRouteEffect<S, B>,
+        P::Effect: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
     {
         Ok(self.set_route(

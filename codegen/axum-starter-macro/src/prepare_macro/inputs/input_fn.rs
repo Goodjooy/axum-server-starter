@@ -106,7 +106,7 @@ pub struct GenericWithBound<'r> {
 
 impl<'r> GenericWithBound<'r> {
     fn new(generic: &'r Generics, lifetime: Option<&'r Lifetime>) -> syn::Result<Self> {
-        // where bund only have type
+        // where bound only have type
         let where_bound = if let Some(bounds) = generic.where_clause.as_ref().map(|w| &w.predicates)
         {
             Some(
