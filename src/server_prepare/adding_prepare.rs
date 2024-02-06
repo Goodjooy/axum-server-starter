@@ -65,15 +65,14 @@ where
     /// the [Prepare] task will be execute one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
-    pub fn prepare_route<P, B, S>(
+    pub fn prepare_route<P, S>(
         self,
         prepare: P,
     ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator>
     where
         P: Prepare<C> + 'static,
-        P::Effect: PrepareRouteEffect<S, B>,
-        Ri: PrepareRouteEffect<S, B>,
-        B: http_body::Body + Send + 'static,
+        P::Effect: PrepareRouteEffect<S>,
+        Ri: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
     {
         let prepares = self.span.in_scope(|| {

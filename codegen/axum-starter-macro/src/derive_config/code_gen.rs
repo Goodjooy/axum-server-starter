@@ -158,21 +158,22 @@ impl<'r> From<&'r DeriveInput> for ImplServerEffect<'r> {
 
 impl<'r> ToTokens for ImplServerEffect<'r> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ImplServerEffect { ident, func } = self;
-
-        let effect = func
-            .map(|func| quote::quote!(#func (self, server)))
-            .unwrap_or_else(|| quote::quote!(server));
+        // TODO: waiting for axum support config server
+        // let ImplServerEffect { ident, func } = self;
+        //
+        // let effect = func
+        //     .map(|func| quote::quote!(#func (self, server)))
+        //     .unwrap_or_else(|| quote::quote!(server));
 
         let token = quote::quote! {
-            impl<A: ::axum_starter::Accept> ::axum_starter::ConfigureServerEffect<A> for #ident{
-                fn effect_server(
-                    &self,
-                    server: ::axum_starter::Builder<A>,
-                ) -> ::axum_starter::Builder<A> {
-                    #effect
-                }
-            }
+            // impl<A: ::axum_starter::Accept> ::axum_starter::ConfigureServerEffect<A> for #ident{
+            //     fn effect_server(
+            //         &self,
+            //         server: ::axum_starter::Builder<A>,
+            //     ) -> ::axum_starter::Builder<A> {
+            //         #effect
+            //     }
+            // }
         };
 
         tokens.extend(token);
