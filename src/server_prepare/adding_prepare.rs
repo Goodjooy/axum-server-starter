@@ -39,7 +39,7 @@ where
     ///
     /// # Note
     ///
-    /// [Prepare] set added by different [Self::prepare_concurrent] will be execute serially
+    /// [Prepare] set added by different [Self::prepare_concurrent] will be executed serially
     pub fn prepare_concurrent<F>(
         self,
         concurrent: F,
@@ -62,18 +62,17 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
-    pub fn prepare_route<P, B, S>(
+    pub fn prepare_route<P, S>(
         self,
         prepare: P,
     ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator>
     where
         P: Prepare<C> + 'static,
-        P::Effect: PrepareRouteEffect<S, B>,
-        Ri: PrepareRouteEffect<S, B>,
-        B: http_body::Body + Send + 'static,
+        P::Effect: PrepareRouteEffect<S>,
+        Ri: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
     {
         let prepares = self.span.in_scope(|| {
@@ -91,7 +90,7 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn prepare_state<P>(
@@ -118,7 +117,7 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn prepare_middleware<S, P>(

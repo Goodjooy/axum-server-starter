@@ -1,34 +1,16 @@
-use std::error;
-use std::fmt::Display;
+use std::{error, io};
+
+use futures::future::LocalBoxFuture;
+use futures::FutureExt;
+use hyper_util::server::conn::auto::Builder;
 use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
-use hyper::server::accept::Accept;
-use hyper::server::conn::AddrIncoming;
-use hyper::server::Builder;
-use hyper::Server;
-
-/// binding to any kind of income stream
-///
-/// ## Using Cases
-/// 1. Accept Data Stream from other source.
-/// For example from UDS, Pipe or even Files
-/// 2. Adding extra functional on exist [`Accept`] type.
-/// For example adding logging request ip address on [`AddrIncoming`]
-pub trait BindServe {
-    /// the Accept type
-    type A: Accept;
-    /// the listen source for logger
-    type Target: Display;
-
-    /// get where the binder listen for
-    fn listen_target(&self) -> Self::Target;
-
-    /// create listener, ready for listen incoming streams
-    fn create_listener(&self) -> Self::A;
-
-    /// bind to listen target
-    fn bind(&self) -> Builder<Self::A> {
-        Server::builder(self.create_listener())
+/// binding address provided by [ServeAddress]
+pub trait BindServe: ServeAddress {
+    fn bind(&self) -> LocalBoxFuture<io::Result<TcpListener>> {
+        let addr = ServeAddress::get_address(self).into();
+        TcpListener::bind(addr).boxed_local()
     }
 }
 
@@ -38,22 +20,7 @@ pub trait ServeAddress {
     fn get_address(&self) -> Self::Address;
 }
 
-impl<T> BindServe for T
-where
-    T: ServeAddress,
-{
-    type A = AddrIncoming;
-    type Target = SocketAddr;
-
-    fn listen_target(&self) -> Self::Target {
-        self.get_address().into()
-    }
-
-    fn create_listener(&self) -> Self::A {
-        let addr = &self.get_address().into();
-        AddrIncoming::bind(addr).unwrap_or_else(|e| panic!("error bind to {addr} {e}"))
-    }
-}
+impl<T: ServeAddress> BindServe for T {}
 
 /// init the logger of this server by the Config
 ///
@@ -66,11 +33,9 @@ pub trait LoggerInitialization {
 }
 
 /// change the server configure
-pub trait ConfigureServerEffect<A = AddrIncoming>
-where
-    A: Accept,
-{
-    fn effect_server(&self, server: Builder<A>) -> Builder<A> {
+#[deprecated(since = "0.9.0", note = "axum current not support edit server")]
+pub trait ConfigureServerEffect {
+    fn effect_server<E>(&self, server: Builder<E>) -> Builder<E> {
         server
     }
 }

@@ -2,7 +2,7 @@
 
 [![Github](https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github)](https://github.com/Goodjooy/axum-server-starter)
 [![Crates.io](https://img.shields.io/crates/v/axum-starter.svg?style=for-the-badge)](https://crates.io/crates/axum-starter)
-![Licente](https://img.shields.io/github/license/Goodjooy/axum-server-starter?style=for-the-badge)
+![License](https://img.shields.io/github/license/Goodjooy/axum-server-starter?style=for-the-badge)
 
 ## Why axum-starter
 

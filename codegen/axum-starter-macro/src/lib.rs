@@ -15,8 +15,11 @@ mod utils;
 /// ## Example
 ///
 /// ```rust
+/// use std::net::SocketAddr;
+/// use axum_starter;
+/// use axum_starter_macro::Provider;
 /// #[derive(Debug, Provider)]
-/// #[provider(ref)]
+/// #[provider(r#ref)]
 /// struct Configure {
 ///     // this will impl `Provider<&String>`
 ///     // because of the `ref` on container and its own `transparent`
@@ -38,7 +41,7 @@ mod utils;
 ///
 /// ```  
 ///
-/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
+/// - using `r#ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
 /// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type. Can be using on container to apply on all fields
 /// - using `ignore_global` to ignore the `ref` and `transparent` setting on container
 /// - using `skip` to not impl `Provider` for this field
@@ -55,6 +58,8 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 /// ## Example
 ///
 /// ```rust
+/// use std::net::SocketAddr;
+/// use axum_starter_macro::{Configure, Provider};
 /// #[derive(Debug, Provider, Configure)]
 /// #[conf(
 ///     address(provide),
@@ -89,10 +94,10 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 /// ### logger
 /// - using `logger(error="...", func="...",associate)` to impl `LoggerInitialization`,
 /// the `func` and `associate` is similar to the `path` and `associate` of `address(func(path="...", associate))` but the return type became `Result<(),$error>`
-///     - `error` the error that might ocurred during initialization the log system
+///     - `error` the error that might occur during initialization the log system
 ///
 /// ### server
-/// - using `server="..."` to impl `ConfigureServerEffect` with internally call the provide func or
+/// - using `server="..."` to impl `ConfigureServerEffect` with internally call the `provide` func or
 /// just using `server` or ignore it to having an empty implement. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`
 ///
 #[proc_macro_derive(Configure, attributes(conf))]
@@ -119,7 +124,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// [macro@prepare] support either sync or async function.
 /// It can generate type which implement the [`Prepare`](https://docs.rs/axum-starter/latest/axum_starter/trait.Prepare.html) trait
 ///
-/// the function arguments require can be provide by  the `Configure`.
+/// the function arguments require can be provided by  the `Configure`.
 ///
 /// the return type , usually can be one of :
 /// - `()`
@@ -133,6 +138,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// generate Name
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(Foo?)]
 /// fn prepare_foo() -> Result<(), std::io::Error>{
 ///     // do something that might return Err()
@@ -147,6 +153,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// like this.
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(Foo 'f)]
 /// fn prepare_foo(foo_name: &'f String){
 ///     // do somethings
@@ -155,6 +162,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// Or,you can not provide any lifetime symbol, the macro will automatic find all needing lifetime places and giving a default symbol
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(Foo)]
 /// fn prepare_foo(foo_name: &String){
 ///     // do somethings
@@ -164,16 +172,18 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// Or only give lifetime symbol in macro input. The macro will auto replace `'_` into `'arg` if necessary
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(Foo 'arg)]
 /// fn prepare_foo(foo_name: &String){
 ///     // do somethings
 /// }
 /// ```
 ///
-/// some times store `Future` on stack may cause ***Stack Overflow***, you can using `box` before generate name
+/// sometimes store `Future` on stack may cause ***Stack Overflow***, you can using `box` before generate name
 /// make the return type became `Pin<Box<dyn Future>>`
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(box Foo)]
 /// async fn prepare_foo(){
 ///     // do something may take place large space
@@ -184,6 +194,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// note that `box` and `sync` cannot use in the same time
 ///
 /// ```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(sync Foo)]
 /// fn prepare_foo(){
 ///     // do something not using `await`
@@ -194,6 +205,7 @@ pub fn derive_from_state_collector(input: proc_macro::TokenStream) -> proc_macro
 /// the `origin` is after the `box` or `sync`, but before the Ident
 ///
 ///```rust
+/// use axum_starter_macro::prepare;
 /// #[prepare(sync origin Foo)]
 /// fn prepare_foo(){
 ///     // do something not using `await`
@@ -208,8 +220,6 @@ pub fn prepare(
     let prepare_name = parse_macro_input!(attrs as PrepareName);
     let fn_item = parse_macro_input!(input as ItemFn);
 
-    match prepare_macro::prepare_macro(&prepare_name, fn_item) {
-        Ok(token) => token,
-        Err(error) => error.to_compile_error().into(),
-    }
+    prepare_macro::prepare_macro(&prepare_name, fn_item)
+        .unwrap_or_else(|error| error.to_compile_error().into())
 }
