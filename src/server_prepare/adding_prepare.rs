@@ -39,7 +39,7 @@ where
     ///
     /// # Note
     ///
-    /// [Prepare] set added by different [Self::prepare_concurrent] will be execute serially
+    /// [Prepare] set added by different [Self::prepare_concurrent] will be executed serially
     pub fn prepare_concurrent<F>(
         self,
         concurrent: F,
@@ -62,7 +62,7 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn prepare_route<P, S>(
@@ -90,7 +90,7 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn prepare_state<P>(
@@ -117,7 +117,7 @@ where
     ///
     /// ## Note
     ///
-    /// the [Prepare] task will be execute one by one.
+    /// the [Prepare] task will be executed one by one.
     ///
     /// **DO NOT** block any task for a long time, neither **sync** nor **async**
     pub fn prepare_middleware<S, P>(
