@@ -41,7 +41,7 @@ mod utils;
 ///
 /// ```  
 ///
-/// - using `ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
+/// - using `r#ref` to impl `Provider` provide reference instant of Owned (with clone) .Can be using on container to apply on all fields
 /// - using `transparent` to impl `Provider` the original type instant of generate a wrapper type. Can be using on container to apply on all fields
 /// - using `ignore_global` to ignore the `ref` and `transparent` setting on container
 /// - using `skip` to not impl `Provider` for this field
