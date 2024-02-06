@@ -22,12 +22,12 @@ use axum_starter::{
 };
 use axum_starter_macro::FromStateCollector;
 use futures::FutureExt;
-use hyper::Body;
 use tokio::sync::{mpsc, watch};
 
 use futures::future::LocalBoxFuture;
 use log::info;
 use std::slice::Iter;
+use axum::body::Body;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 
 /// configure for server starter
@@ -89,10 +89,9 @@ fn the_value<const V: i32>() {
 
 /// using `#[prepare]`
 #[prepare(EchoRouter)]
-fn echo<S, B>() -> impl PrepareRouteEffect<S, B>
+fn echo<S>() -> impl PrepareRouteEffect<S>
 where
     S: Clone + Send + Sync + 'static,
-    B: http_body::Body + Send + 'static,
 {
     Route::new(
         "/:echo",
@@ -101,10 +100,9 @@ where
 }
 
 #[prepare(OnFlyRoute)]
-fn route<S, B>() -> impl PrepareRouteEffect<S, B>
+fn route<S>() -> impl PrepareRouteEffect<S>
 where
     S: Clone + Send + Sync + 'static,
-    B: http_body::Body + Send + 'static,
     watch::Receiver<usize>: FromRef<S>,
 {
     Route::new(
@@ -116,10 +114,9 @@ where
 }
 
 #[prepare(box C ?)]
-fn routers<S, B>() -> Result<impl PrepareRouteEffect<S, B>, Infallible>
+fn routers<S>() -> Result<impl PrepareRouteEffect<S>, Infallible>
 where
     S: Clone + Send + Sync + 'static,
-    B: http_body::Body + Send + 'static,
 {
     Ok((
         Nest::new(
@@ -134,7 +131,7 @@ where
 }
 
 pub struct InFlight {
-    layer: tower_http::metrics::InFlightRequestsLayer,
+    layer: InFlightRequestsLayer,
     counter: watch::Receiver<usize>,
 }
 
@@ -149,7 +146,7 @@ impl<S> PrepareMiddlewareEffect<S> for InFlight {
 
 #[prepare(OnFlyMiddleware)]
 fn on_fly_state() -> InFlight {
-    let (layer, counter) = tower_http::metrics::InFlightRequestsLayer::pair();
+    let (layer, counter) = InFlightRequestsLayer::pair();
     let (sender, mut receive) = mpsc::channel(1);
     let (sender2, recv2) = watch::channel(0);
 
@@ -207,7 +204,7 @@ async fn start() {
         .prepare_concurrent(|set| set.join(ShowFoo::<_, String>).join(Show).join(Sleeping))
         .prepare_route(EchoRouter)
         .prepare_route(OnFlyRoute)
-        .prepare_middleware::<Route<MyState, Body>, _>(OnFlyMiddleware)
+        .prepare_middleware::<Route<MyState>, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
         .preparing()
         .await

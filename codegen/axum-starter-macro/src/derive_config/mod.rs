@@ -13,7 +13,7 @@ pub fn provider_derive(derive_input: DeriveInput) -> darling::Result<proc_macro:
     }
 
     let config =
-        <self::derive_inputs::DeriveInput as FromDeriveInput>::from_derive_input(&derive_input)?;
+        <derive_inputs::DeriveInput as FromDeriveInput>::from_derive_input(&derive_input)?;
 
     let address = config
         .address
