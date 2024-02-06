@@ -25,7 +25,7 @@ impl PrepareError {
             source: src,
         }
     }
-    pub fn to_prepare_error<P, E: std::error::Error + 'static>(err: E) -> PrepareError {
+    pub fn to_prepare_error<P, E: error::Error + 'static>(err: E) -> PrepareError {
         PrepareError::new(type_name::<P>(), Box::new(err))
     }
 }
@@ -39,4 +39,6 @@ pub enum PrepareStartError {
     #[error(transparent)]
     /// state convent error
     State(#[from] TypeNotInState),
+    #[error(transparent)]
+    IO(#[from]std::io::Error)
 }

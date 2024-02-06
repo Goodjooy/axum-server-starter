@@ -1,26 +1,24 @@
 use axum::Router;
-use http_body::Body;
 
-/// prepare side effect of [Router](axum::Router)
-pub trait PrepareRouteEffect<S, B>: 'static + Sized {
-    fn set_route(self, route: Router<S, B>) -> Router<S, B>
+
+/// prepare side effect of [Router](Router)
+pub trait PrepareRouteEffect<S>: 'static + Sized {
+    fn set_route(self, route: Router<S>) -> Router<S>
     where
-        B: Body + Send + 'static,
         S: Clone + Send + Sync + 'static;
 }
 
 macro_rules! route_effect {
     ($($id:ident),* $(,)?) => {
-        impl<$($id,)* S, B> PrepareRouteEffect<S,B> for ($($id,)*)
+        impl<$($id,)* S> PrepareRouteEffect<S> for ($($id,)*)
         where
             $(
-                $id: PrepareRouteEffect<S,B>,
+                $id: PrepareRouteEffect<S>,
             )*
         {
             #[allow(non_snake_case)]
-            fn set_route(self, route: Router<S, B>) -> Router<S, B>
+            fn set_route(self, route: Router<S>) -> Router<S>
             where
-                B: Body + Send + 'static,
                 S: Clone + Send + Sync + 'static
             {
                 let ($($id,)*) = self;

@@ -1,17 +1,14 @@
 #[allow(unused_imports)]
 use std::any::type_name;
-use std::{
-    convert::Infallible,
-    marker::{PhantomData, Send},
-    sync::Arc,
-};
+use std::{convert::Infallible, io, marker::{PhantomData, Send}, sync::Arc};
+use std::future::IntoFuture;
 
 use axum::{body::Bytes, routing::Route, BoxError, Router};
 use futures::Future;
-use hyper::server::accept::Accept;
-use hyper::{Body, Request, Response};
+use hyper::{ Request, Response};
+use axum::body::Body;
 use tap::Pipe;
-use tokio::io::{AsyncRead, AsyncWrite};
+
 use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
 
 use crate::{
@@ -23,7 +20,8 @@ use crate::{
 
 pub use self::{
     configure::{
-        BindServe, ConfigureServerEffect, EmptyDecorator, LoggerInitialization, PrepareDecorator,
+        BindServe,
+          EmptyDecorator, LoggerInitialization, PrepareDecorator,
         ServeAddress,
     },
     error::{PrepareError, PrepareStartError},
@@ -92,7 +90,7 @@ impl<C, FutEffect, State, Graceful, Decorator>
 where
     C: LoggerInitialization,
 {
-    /// init the logger of this [ServerPrepare] ,require C impl [LoggerInitialization]
+    /// init the (logger) of this [ServerPrepare] ,require C impl [LoggerInitialization]
     pub fn init_logger(self) -> LogResult<C, FutEffect, LogInit, State, Graceful, Decorator> {
         self.span.in_scope(|| {
             let t = self.prepares.get_ref_configure().init_logger();
@@ -133,59 +131,19 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
 {
     /// prepare to start this server
     ///
-    /// using [`ServerPrepare::preparing`]
-    #[deprecated]
-    pub async fn prepare_start<NewResBody>(
-        self,
-    ) -> Result<
-        ServerReady<
-            impl Future<Output = Result<(), hyper::Error>>,
-            impl Future<Output = Result<(), hyper::Error>>,
-        >,
-        PrepareStartError,
-    >
-    where
-        // config
-        C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
-        <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
-        <C::A as Accept>::Error: Send + Sync + std::error::Error,
-        // middleware
-        L: Send + 'static,
-        ServiceBuilder<L>: Layer<Route> + Clone,
-        <ServiceBuilder<L> as Layer<Route>>::Service: Send
-            + Clone
-            + Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
-            + 'static,
-        <<ServiceBuilder<L> as Layer<Route>>::Service as Service<Request<Body>>>::Future: Send,
-        NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
-        // prepare task
-        R: PrepareRouteEffect<State, Body>,
-        // state
-        State: FromStateCollector,
-        State: Clone + Send + 'static + Sync,
-        // graceful
-        Graceful: FetchGraceful,
-    {
-        self.preparing().await
-    }
-    /// prepare to start this server
-    ///
-    /// this will consume `Self` then return [ServerReady](crate::ServerReady)
+    /// this will consume `Self` then return [ServerReady](ServerReady)
     pub async fn preparing<NewResBody>(
         self,
     ) -> Result<
         ServerReady<
-            impl Future<Output = Result<(), hyper::Error>>,
-            impl Future<Output = Result<(), hyper::Error>>,
+            impl Future<Output = Result<(), io::Error>>,
+            impl Future<Output = Result<(), io::Error>>,
         >,
         PrepareStartError,
     >
     where
         // config
-        C: BindServe + ConfigureServerEffect<<C as BindServe>::A>,
-        <C::A as Accept>::Conn: AsyncRead + AsyncWrite + Send + Sync + Unpin,
-        <C::A as Accept>::Error: Send + Sync + std::error::Error,
+        C:  BindServe,
         // middleware
         L: Send + 'static,
         ServiceBuilder<L>: Layer<Route> + Clone,
@@ -197,7 +155,7 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
         // prepare task
-        R: PrepareRouteEffect<State, Body>,
+        R: PrepareRouteEffect<State>,
         // state
         State: FromStateCollector,
         State: Clone + Send + 'static + Sync,
@@ -214,7 +172,7 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
 
             debug!(effect = "Router");
             let router = Router::new()
-                // apply prepare effect on router
+                // apply to prepare effect on router
                 .pipe(|router| route.set_route(router))
                 // adding middleware
                 .pipe(|router| router.layer(middleware))
@@ -223,22 +181,20 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
             debug!(effect = "Graceful Shutdown");
             let graceful = self.graceful.get_graceful();
 
-            debug!(effect = "Server");
-            let server = configure
-                .bind()
-                // apply configure config server
-                .pipe(|server| configure.effect_server(server))
-                .serve(router.into_make_service());
 
+            debug!(effect = "Server");
+            let listener = configure
+                .bind().await?;
+            let server = axum::serve(listener, router);
             debug!(effect = "All Done");
             info!(
-                service.address = %&configure.listen_target(),
+                service.address = %&configure.get_address().into(),
                 service.status = "Ready"
             );
 
             Ok(match graceful {
-                Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut)),
-                None => ServerReady::Server(server),
+                Some(fut) => ServerReady::Graceful(server.with_graceful_shutdown(fut).into_future()),
+                None => ServerReady::Server(server.into_future()),
             })
         }
         .pipe(|fut| {

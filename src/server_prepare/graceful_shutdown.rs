@@ -7,7 +7,7 @@ pub struct Graceful<Fut>(Fut);
 
 impl<Fut> FetchGraceful for Graceful<Fut>
 where
-    Fut: Future<Output = ()>,
+    Fut: Future<Output = ()>+ Send + 'static,
 {
     type Future = Fut;
 
@@ -17,7 +17,7 @@ where
 }
 
 pub trait FetchGraceful {
-    type Future: Future<Output = ()>;
+    type Future: Future<Output = ()> + Send + 'static;
     fn get_graceful(self) -> Option<Self::Future>;
 }
 
