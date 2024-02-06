@@ -3,7 +3,6 @@ use std::{any::type_name, mem::size_of_val};
 use std::{future::IntoFuture, sync::Arc};
 
 use futures::{future::ok, FutureExt, TryFutureExt};
-use http_body::Body;
 use tap::Pipe;
 use tower::layer::util::{Identity, Stack};
 
@@ -76,16 +75,12 @@ where
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareRouteEffect]
-    pub(crate) fn then_route<P, S, B>(
-        self,
-        prepare: P,
-    ) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
+    pub(crate) fn then_route<P, S>(self, prepare: P) -> ThenRouterPrepareRet<C, P, R, L, Decorator>
     where
         P: Prepare<C> + 'static,
-        P::Effect: PrepareRouteEffect<S, B>,
+        P::Effect: PrepareRouteEffect<S>,
         P::Error: 'static,
-        R: PrepareRouteEffect<S, B>,
-        B: Body + Send + 'static,
+        R: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
     {
         debug!(

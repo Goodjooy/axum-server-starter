@@ -24,3 +24,7 @@ proc-macro2 = "1.0.66"
 quote = "1"
 syn = { version = "2", features = ["visit-mut", "visit"] }
 heck = "0.4"
+
+[dev-dependencies]
+axum-starter = "0.8.0"
+log = "0.4.20"

@@ -1,4 +1,5 @@
 use futures::Future;
+use std::io;
 
 /// all prepare task are done , the server is ready for launch
 pub enum ServerReady<G, S> {
@@ -6,11 +7,9 @@ pub enum ServerReady<G, S> {
     Graceful(G),
 }
 
-impl<S: Future<Output = hyper::Result<()>>, G: Future<Output = hyper::Result<()>>>
-    ServerReady<S, G>
-{
+impl<S: Future<Output = io::Result<()>>, G: Future<Output = io::Result<()>>> ServerReady<S, G> {
     /// start this server
-    pub async fn launch(self) -> hyper::Result<()> {
+    pub async fn launch(self) -> io::Result<()> {
         info!(service.status = "Starting");
         match self {
             ServerReady::Server(s) => s.await?,

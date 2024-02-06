@@ -7,7 +7,7 @@ use std::{error::Error as StdError, future::IntoFuture, sync::Arc};
 use futures::Future;
 
 /// Prepare Task witch may return any kind of effect
-pub trait Prepare<C: 'static> {
+pub trait Prepare<C: 'static>: 'static {
     /// the effect
     type Effect: 'static;
     /// prepare error
