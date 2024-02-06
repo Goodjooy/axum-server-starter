@@ -16,9 +16,10 @@ mod utils;
 ///
 /// ```rust
 /// use std::net::SocketAddr;
+/// use axum_starter;
 /// use axum_starter_macro::Provider;
 /// #[derive(Debug, Provider)]
-/// #[provider(ref)]
+/// #[provider(r#ref)]
 /// struct Configure {
 ///     // this will impl `Provider<&String>`
 ///     // because of the `ref` on container and its own `transparent`
@@ -93,10 +94,10 @@ pub fn derive_config_provider(input: proc_macro::TokenStream) -> proc_macro::Tok
 /// ### logger
 /// - using `logger(error="...", func="...",associate)` to impl `LoggerInitialization`,
 /// the `func` and `associate` is similar to the `path` and `associate` of `address(func(path="...", associate))` but the return type became `Result<(),$error>`
-///     - `error` the error that might ocurred during initialization the log system
+///     - `error` the error that might occur during initialization the log system
 ///
 /// ### server
-/// - using `server="..."` to impl `ConfigureServerEffect` with internally call the provide func or
+/// - using `server="..."` to impl `ConfigureServerEffect` with internally call the `provide` func or
 /// just using `server` or ignore it to having an empty implement. The function look like `fn (&self, Builder<AddrIncome>) -> Builder<AddrIncome>`
 ///
 #[proc_macro_derive(Configure, attributes(conf))]
@@ -219,8 +220,5 @@ pub fn prepare(
     let prepare_name = parse_macro_input!(attrs as PrepareName);
     let fn_item = parse_macro_input!(input as ItemFn);
 
-    match prepare_macro::prepare_macro(&prepare_name, fn_item) {
-        Ok(token) => token,
-        Err(error) => error.to_compile_error().into(),
-    }
+    prepare_macro::prepare_macro(&prepare_name, fn_item).unwrap_or_else(|error| error.to_compile_error().into())
 }
