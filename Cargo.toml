@@ -23,11 +23,11 @@ members = ["./codegen/axum-starter-macro", "./examples/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-axum = "0.6"
+axum = "0.7"
 axum-starter-macro = { version = "0.8.0" }
 futures = "0.3"
-http-body = "0.4"
-hyper = { version = "0.14", features = ["server"] }
+http-body = "1"
+hyper = { version = "1", features = ["server"] }
 tap = "1"
 thiserror = "1"
 tokio = { version = "1.21.2", features = ["io-util"] }
@@ -35,12 +35,12 @@ tower = "0.4"
 tracing = { version = "0.1", features = ["log"], optional = true }
 
 [dev-dependencies]
-tower-http = { version = "0.3.4", features = [
+tower-http = { version = "0.5", features = [
     "catch-panic",
     "trace",
     "metrics"
 ] }
-tokio = { version = "1.21.2", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 simple_logger = "4.0.0"
 log = "0.4"
-axum = { version = "0.6", features = ["macros"] }
+axum = { version = "0.7", features = ["macros"] }
