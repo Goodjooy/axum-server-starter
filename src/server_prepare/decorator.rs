@@ -22,6 +22,7 @@ impl<C, Effect, Log, State, Graceful, Decorator>
         ServerPrepare::new(
             self.prepares.change_decorator(decorator),
             self.graceful,
+            self.state,
             self.span,
         )
     }

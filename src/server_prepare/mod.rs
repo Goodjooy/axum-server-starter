@@ -13,6 +13,7 @@ use axum::{body::Bytes, routing::Route, BoxError, Router};
 use futures::Future;
 use hyper::{Request, Response};
 use tap::Pipe;
+use tokio::spawn;
 
 use tower::{layer::util::Identity, Layer, Service, ServiceBuilder};
 
@@ -40,6 +41,7 @@ mod state_ready;
 
 mod configure;
 mod decorator;
+mod post_prepare;
 
 pub struct NoLog;
 
@@ -56,11 +58,12 @@ pub struct ServerPrepare<
 > {
     prepares: SerialPrepareSet<C, Effect, Decorator>,
     graceful: Graceful,
+    state: State,
     #[cfg(feature = "logger")]
     span: tracing::Span,
     #[cfg(not(feature = "logger"))]
     span: crate::fake_span::FakeSpan,
-    _phantom: PhantomData<(Log, State)>,
+    _phantom: PhantomData<(Log,)>,
 }
 
 impl<C, FutEffect, Log, State, Graceful, Decorator>
@@ -69,12 +72,14 @@ impl<C, FutEffect, Log, State, Graceful, Decorator>
     fn new(
         prepares: SerialPrepareSet<C, FutEffect, Decorator>,
         graceful: Graceful,
+        state: State,
         #[cfg(feature = "logger")] span: tracing::Span,
         #[cfg(not(feature = "logger"))] span: crate::fake_span::FakeSpan,
     ) -> Self {
         Self {
             prepares,
             _phantom: PhantomData,
+            state,
             span,
             graceful,
         }
@@ -99,7 +104,12 @@ where
             t
         })?;
 
-        Ok(ServerPrepare::new(self.prepares, self.graceful, self.span))
+        Ok(ServerPrepare::new(
+            self.prepares,
+            self.graceful,
+            self.state,
+            self.span,
+        ))
     }
 }
 
@@ -122,6 +132,7 @@ impl<C: 'static>
         ServerPrepare::new(
             SerialPrepareSet::new(Arc::new(config), EmptyDecorator),
             NoGraceful,
+            StateNotReady,
             span,
         )
     }
@@ -177,7 +188,7 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
                 .pipe(|router| route.set_route(router))
                 // adding middleware
                 .pipe(|router| router.layer(middleware))
-                .with_state(state);
+                .with_state(state.clone());
 
             debug!(effect = "Graceful Shutdown");
             let graceful = self.graceful.get_graceful();
@@ -190,6 +201,19 @@ impl<C: 'static, Log, State, Graceful, R, L, Decorator>
                 service.address = %&configure.get_address().into(),
                 service.status = "Ready"
             );
+            let post_prepare_tasks = self.state.take();
+            debug!(
+                execute = "Post Prepare Tasks",
+                numbers = post_prepare_tasks.len()
+            );
+            for task in post_prepare_tasks {
+                spawn({
+                    let local_state = state.clone();
+                    async move {
+                        (task)(local_state).await;
+                    }
+                });
+            }
 
             Ok(match graceful {
                 Some(fut) => {

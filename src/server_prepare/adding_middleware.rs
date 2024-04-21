@@ -22,6 +22,7 @@ where
         ServerPrepare::new(
             self.prepares.set_middleware(middleware),
             self.graceful,
+            self.state,
             self.span,
         )
     }

@@ -1,9 +1,27 @@
 use std::marker::PhantomData;
 
+use crate::server_prepare::post_prepare::PostPrepareFn;
 use crate::{prepare_behave::FromStateCollector, ServerPrepare};
 
 pub struct StateNotReady;
-pub struct StateReady<S>(PhantomData<S>);
+
+pub struct StateReady<S>(Vec<PostPrepareFn<S>>);
+
+impl<S> Default for StateReady<S> {
+    fn default() -> Self {
+        Self(vec![])
+    }
+}
+
+impl<S> StateReady<S> {
+    pub fn push(&mut self, post_prepare: PostPrepareFn<S>) {
+        self.0.push(post_prepare)
+    }
+
+    pub fn take(self) -> Vec<PostPrepareFn<S>> {
+        self.0
+    }
+}
 
 impl<C, FutEffect, Log, Graceful, Decorator>
     ServerPrepare<C, FutEffect, Log, StateNotReady, Graceful, Decorator>
@@ -16,6 +34,7 @@ impl<C, FutEffect, Log, Graceful, Decorator>
         ServerPrepare {
             prepares: self.prepares,
             graceful: self.graceful,
+            state: StateReady::default(),
             span: self.span,
             _phantom: PhantomData,
         }

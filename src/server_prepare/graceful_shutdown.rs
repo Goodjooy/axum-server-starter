@@ -40,6 +40,6 @@ impl<C, FutEffect, Log, State, Decorator>
     where
         Fut: Future<Output = ()>,
     {
-        ServerPrepare::new(self.prepares, Graceful(future), self.span)
+        ServerPrepare::new(self.prepares, Graceful(future), self.state, self.span)
     }
 }
