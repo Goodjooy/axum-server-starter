@@ -15,7 +15,7 @@ where
     fn exec(self, state: &S) -> Self::PostFut;
 }
 
-pub type PostPrepareFn<S> = Box<dyn FnOnce(S) -> BoxFuture<'static, ()>+Send>;
+pub type PostPrepareFn<S> = Box<dyn FnOnce(S) -> BoxFuture<'static, ()> + Send>;
 fn post_prepare_to_dyn<S, Args, T>(prepare: T) -> PostPrepareFn<S>
 where
     S: Send + Sync + 'static,
@@ -39,7 +39,7 @@ macro_rules! post_prepare_gen {
                 ),*
         {
             type PostFut = Fut;
-                
+
             #[allow(unused_variables)]
             fn exec(self, state: &S) -> Self::PostFut {
                 (self)(
@@ -65,14 +65,13 @@ post_prepare_gen!(A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
 impl<C, Effect, Log, State, Graceful, Decorator>
     ServerPrepare<C, Effect, Log, StateReady<State>, Graceful, Decorator>
 {
-    
     /// execute a task after all prepare task done before service start
-    /// 
+    ///
     /// the task can be a [FnOnce] which has the following features
     /// 1. the arg list all impl Arg: From<State>
     /// 2. is an Async Function
     /// 3. the function return `()`
-    /// 
+    ///
     /// # Note
     /// those tasks will run in a spawn tokio task, do not assume the service has been started
     pub fn post_prepare<Args, T>(mut self, post_prepare: T) -> Self

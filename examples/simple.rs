@@ -184,13 +184,15 @@ async fn show(FooBar((x, y)): FooBar) {
 }
 
 // following is the post prepare task
-async fn print_foo_every_5s(mut request_count : watch::Receiver<usize>){
+async fn print_foo_every_5s(mut request_count: watch::Receiver<usize>) {
     let mut interval = interval(Duration::from_secs(5));
 
     loop {
-
         interval.tick().await;
-        println!("Foo, current request is :{}",*request_count.borrow_and_update());
+        println!(
+            "Foo, current request is :{}",
+            *request_count.borrow_and_update()
+        );
     }
 }
 

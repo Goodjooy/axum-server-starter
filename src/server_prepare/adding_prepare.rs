@@ -55,7 +55,7 @@ where
                 ConcurrentPrepareSet::new(self.prepares.get_configure(), &*decorator);
             self.prepares.combine(concurrent(concurrent_set))
         });
-        ServerPrepare::new(prepares, self.graceful,self.state, self.span)
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 
     /// adding a [Prepare] apply effect on [**Router**](axum::Router)
@@ -84,7 +84,7 @@ where
             self.prepares.then_route(prepare)
         });
 
-        ServerPrepare::new(prepares, self.graceful,self.state, self.span)
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
     /// adding a [Prepare] adding effect on **State**
     ///
@@ -110,7 +110,7 @@ where
             self.prepares.then_state(prepare)
         });
 
-        ServerPrepare::new(prepares, self.graceful,self.state, self.span)
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 
     /// adding a [Prepare] apply  effect on **State** and **Middleware**
@@ -138,7 +138,7 @@ where
             self.prepares.then_middleware(prepare)
         });
 
-        ServerPrepare::new(prepares, self.graceful,self.state, self.span)
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 
     /// adding a [Prepare] without effect
@@ -158,6 +158,6 @@ where
             self.prepares.then(prepare)
         });
 
-        ServerPrepare::new(prepares, self.graceful,self.state, self.span)
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 }
