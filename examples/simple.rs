@@ -27,6 +27,7 @@ use tokio::sync::{mpsc, watch};
 use futures::future::LocalBoxFuture;
 use log::info;
 use std::slice::Iter;
+use tokio::time::interval;
 use tower_http::{metrics::InFlightRequestsLayer, trace::TraceLayer};
 
 /// configure for server starter
@@ -182,6 +183,17 @@ async fn show(FooBar((x, y)): FooBar) {
     println!("the foo bar is local at ({x}, {y})")
 }
 
+// following is the post prepare task
+async fn print_foo_every_5s(mut request_count : watch::Receiver<usize>){
+    let mut interval = interval(Duration::from_secs(5));
+
+    loop {
+
+        interval.tick().await;
+        println!("Foo, current request is :{}",*request_count.borrow_and_update());
+    }
+}
+
 #[tokio::main]
 async fn main() {
     start().await
@@ -205,6 +217,7 @@ async fn start() {
         .prepare_route(OnFlyRoute)
         .prepare_middleware::<Route<MyState>, _>(OnFlyMiddleware)
         .layer(TraceLayer::new_for_http())
+        .post_prepare(print_foo_every_5s)
         .preparing()
         .await
         .expect("Prepare for starting server failure ")
