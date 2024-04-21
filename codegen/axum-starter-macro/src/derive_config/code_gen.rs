@@ -89,14 +89,11 @@ pub struct ImplInitLog<'r> {
 
 impl<'r> From<&'r DeriveInput> for Option<ImplInitLog<'r>> {
     fn from(input: &'r DeriveInput) -> Self {
-        let Some(Logger {
+        let Logger {
             func,
             error,
             associate,
-        }) = input.logger.as_ref()
-        else {
-            return None;
-        };
+        } = input.logger.as_ref()?;
 
         Some(ImplInitLog {
             ident: &input.ident,
