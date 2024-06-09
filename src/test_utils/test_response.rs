@@ -44,12 +44,12 @@ impl TestResponse {
 
     pub async fn plain(self) -> Result<String, axum::Error> {
         let bytes = self.bytes().await?;
-        Ok(String::from_utf8(bytes.to_vec()).map_err(axum::Error::new)?)
+        String::from_utf8(bytes.to_vec()).map_err(axum::Error::new)
     }
 
     pub async fn json<T: DeserializeOwned>(self) -> Result<T, axum::Error> {
         let bytes = self.bytes().await?;
         let reader = std::io::Cursor::new(bytes);
-        Ok(serde_json::from_reader(reader).map_err(axum::Error::new)?)
+        serde_json::from_reader(reader).map_err(axum::Error::new)
     }
 }

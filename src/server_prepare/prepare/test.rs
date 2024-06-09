@@ -1,20 +1,29 @@
 use std::{convert::Infallible, sync::Arc};
 
-use axum::{body::{Body, Bytes}, handler::{Handler, HandlerService}, response::Response, BoxError};
+use axum::{
+    body::{Body, Bytes},
+    handler::{Handler, HandlerService},
+    response::Response,
+    BoxError,
+};
 use http::Request;
 use tap::Pipe;
 use tokio::spawn;
 use tower::{layer::util::Identity, util::MapResponseLayer, Layer, Service, ServiceBuilder};
 
 use crate::{
-    prepare_behave::effect_contain::TestRouter, prepare_sets::ContainerResult, server_prepare::{
+    prepare_behave::effect_contain::TestRouter,
+    prepare_sets::ContainerResult,
+    server_prepare::{
         start_process::{
             graceful_shutdown::NoGraceful,
             logger::NoLog,
             state_ready::{StateNotReady, StateReady},
         },
         EmptyDecorator,
-    }, test_utils::TestResponse, FromStateCollector, PrepareStartError, SerialPrepareSet, ServerPrepare
+    },
+    test_utils::TestResponse,
+    FromStateCollector, PrepareStartError, SerialPrepareSet, ServerPrepare,
 };
 
 impl<C: 'static>
@@ -51,12 +60,18 @@ impl<C: 'static, Log, State, Graceful, L, Decorator>
     pub async fn preparing_test<NewResBody, H, T>(
         self,
         handler: H,
-    ) -> Result<impl Service<Request<Body>,Response = TestResponse,Error = Infallible>, PrepareStartError>
+    ) -> Result<
+        impl Service<Request<Body>, Response = TestResponse, Error = Infallible>,
+        PrepareStartError,
+    >
     where
         // middleware
         L: Send + 'static,
         L: Layer<HandlerService<H, T, State>>,
-        L::Service:Service<Request<Body>,Response = Response<NewResBody>,Error = Infallible>+Send+Clone+'static,
+        L::Service: Service<Request<Body>, Response = Response<NewResBody>, Error = Infallible>
+            + Send
+            + Clone
+            + 'static,
         NewResBody: http_body::Body<Data = Bytes> + Send + 'static,
         NewResBody::Error: Into<BoxError>,
         // state
@@ -72,7 +87,6 @@ impl<C: 'static, Log, State, Graceful, L, Decorator>
             let (state, middleware, _) = prepare_fut.await?.unwrap();
 
             let state = State::fetch(state)?;
-
 
             let post_prepare_tasks = self.state.take();
             debug!(
@@ -90,8 +104,9 @@ impl<C: 'static, Log, State, Graceful, L, Decorator>
 
             let service = handler.with_state(state);
             Ok(ServiceBuilder::new()
-            .layer(MapResponseLayer::new(TestResponse::new))
-            .layer(middleware).service(service))
+                .layer(MapResponseLayer::new(TestResponse::new))
+                .layer(middleware)
+                .service(service))
         }
         .pipe(|fut| {
             #[cfg(feature = "logger")]

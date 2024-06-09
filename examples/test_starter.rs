@@ -1,4 +1,4 @@
-use std::net::{SocketAddr,Ipv4Addr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 

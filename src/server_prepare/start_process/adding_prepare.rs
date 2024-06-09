@@ -94,7 +94,6 @@ where
         ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 
-
     /// adding a [Prepare] adding effect on **State**
     ///
     /// ## Note

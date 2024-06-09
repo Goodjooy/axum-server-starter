@@ -112,7 +112,6 @@ where
     L: 'static,
     Decorator: PrepareDecorator,
 {
-
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareStateEffect]
@@ -244,7 +243,9 @@ where
     }
 }
 
-impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<BaseRouter<()>, Identity>, Decorator> {
+impl<C: 'static, Decorator>
+    SerialPrepareSet<C, ContainerResult<BaseRouter<()>, Identity>, Decorator>
+{
     pub(crate) fn new(configure: Arc<C>, decorator: Decorator) -> Self {
         Self {
             prepare_fut: ok(EffectContainer::new()).boxed_local(),
@@ -253,8 +254,14 @@ impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<BaseRouter<()>, 
         }
     }
 }
-#[cfg(feature="test-utils")]
-impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<crate::prepare_behave::effect_contain::TestRouter, Identity>, Decorator> {
+#[cfg(feature = "test-utils")]
+impl<C: 'static, Decorator>
+    SerialPrepareSet<
+        C,
+        ContainerResult<crate::prepare_behave::effect_contain::TestRouter, Identity>,
+        Decorator,
+    >
+{
     pub(crate) fn new_test(configure: Arc<C>, decorator: Decorator) -> Self {
         Self {
             prepare_fut: ok(EffectContainer::new_test()).boxed_local(),
