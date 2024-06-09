@@ -3,8 +3,9 @@ use std::future::Future;
 use axum::extract::FromRef;
 use futures::future::BoxFuture;
 
-use crate::server_prepare::state_ready::StateReady;
 use crate::ServerPrepare;
+
+use super::state_ready::StateReady;
 
 pub trait PostPrepare<S, Args>
 where
