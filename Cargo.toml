@@ -1,6 +1,6 @@
 [package]
 name = "axum-starter"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 authors = ["FrozenString<frozenstringstable@gmail.com>"]
 description = "A help crate for simplify the code of starting a axum server"
