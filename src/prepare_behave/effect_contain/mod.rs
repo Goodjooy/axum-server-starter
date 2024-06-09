@@ -13,6 +13,9 @@ use super::{
     },
 };
 
+pub struct BaseRouter<R>(pub(crate) R);
+pub struct TestRouter;
+
 /// container store the [Prepare] Effects
 pub struct EffectContainer<R, L> {
     states: StateCollector,
@@ -33,12 +36,22 @@ impl<R, L> EffectContainer<R, L> {
     }
 }
 
-impl EffectContainer<(), Identity> {
+impl EffectContainer<BaseRouter<()>, Identity> {
     pub(crate) fn new() -> Self {
         Self {
             states: StateCollector::new(),
             middleware: ServiceBuilder::new(),
-            route: (),
+            route: BaseRouter(()),
+        }
+    }
+}
+
+impl EffectContainer<TestRouter, Identity> {
+    pub(crate) fn new_test() -> Self {
+        Self {
+            states: StateCollector::new(),
+            middleware: ServiceBuilder::new(),
+            route: TestRouter,
         }
     }
 }
@@ -86,8 +99,10 @@ impl<R, L> EffectContainer<R, L> {
         effect.take_state(&mut self.states);
         self
     }
+}
 
-    pub(crate) fn set_route<S, E>(self, effect: E) -> EffectContainer<(E, R), L>
+impl<R, L> EffectContainer<BaseRouter<R>, L> {
+    pub(crate) fn set_route<S, E>(self, effect: E) -> EffectContainer<BaseRouter<(E, R)>, L>
     where
         E: PrepareRouteEffect<S>,
         S: Clone + Send + 'static + Sync,
@@ -95,7 +110,7 @@ impl<R, L> EffectContainer<R, L> {
         let EffectContainer {
             states,
             middleware,
-            route,
+            route: BaseRouter(route),
         } = self;
 
         let route = (effect, route);
@@ -103,7 +118,7 @@ impl<R, L> EffectContainer<R, L> {
         EffectContainer {
             states,
             middleware,
-            route,
+            route: BaseRouter(route),
         }
     }
 }

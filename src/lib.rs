@@ -11,6 +11,8 @@ mod prepare_sets;
 mod server_prepare;
 mod server_ready;
 
+mod test_utils;
+
 pub use prepare_behave::effect_collectors::state_collector::{
     FromStateCollector, StateCollector, TypeNotInState,
 };
