@@ -53,7 +53,6 @@ async fn task() {
 /// configure for server starter
 #[derive(Debug, Provider, Configure, Default)]
 #[conf(
-    address(func(path = "||SocketAddr::new(Ipv4Addr::LOCALHOST.into(),0)", associate)),
     logger(error = "log::SetLoggerError", func = "simple_logger::init", associate),
     server
 )]
