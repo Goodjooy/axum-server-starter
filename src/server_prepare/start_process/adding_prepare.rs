@@ -1,5 +1,6 @@
 use tower::layer::util::Stack;
 
+use crate::prepare_behave::effect_contain::BaseRouter;
 use crate::server_prepare::PrepareDecorator;
 use crate::{
     prepare_behave::effect_traits::{
@@ -11,7 +12,7 @@ use crate::{
 
 type ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator> = ServerPrepare<
     C,
-    ContainerResult<(<P as Prepare<C>>::Effect, Ri), Li>,
+    ContainerResult<BaseRouter<(<P as Prepare<C>>::Effect, Ri)>, Li>,
     Log,
     State,
     Graceful,
@@ -29,6 +30,41 @@ type ServerPrepareNestMiddleware<C, P, Ri, Li, S, Log, State, Graceful, Decorato
     Graceful,
     Decorator,
 >;
+
+impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static, Decorator>
+    ServerPrepare<C, ContainerResult<BaseRouter<Ri>, Li>, Log, State, Graceful, Decorator>
+where
+    Decorator: PrepareDecorator,
+{
+    /// adding a [Prepare] apply effect on [**Router**](axum::Router)
+    ///
+    /// ## Note
+    ///
+    /// the [Prepare] task will be executed one by one.
+    ///
+    /// **DO NOT** block any task for a long time, neither **sync** nor **async**
+    pub fn prepare_route<P, S>(
+        self,
+        prepare: P,
+    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator>
+    where
+        P: Prepare<C> + 'static,
+        P::Effect: PrepareRouteEffect<S>,
+        Ri: PrepareRouteEffect<S>,
+        S: Clone + Send + 'static + Sync,
+    {
+        let prepares = self.span.in_scope(|| {
+            debug!(
+                mode = "Serial",
+                action = "Add Prepare Route",
+                prepare = core::any::type_name::<P>()
+            );
+            self.prepares.then_route(prepare)
+        });
+
+        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
+    }
+}
 
 impl<C: 'static, Log, State, Graceful, Ri: 'static, Li: 'static, Decorator>
     ServerPrepare<C, ContainerResult<Ri, Li>, Log, State, Graceful, Decorator>
@@ -58,34 +94,7 @@ where
         ServerPrepare::new(prepares, self.graceful, self.state, self.span)
     }
 
-    /// adding a [Prepare] apply effect on [**Router**](axum::Router)
-    ///
-    /// ## Note
-    ///
-    /// the [Prepare] task will be executed one by one.
-    ///
-    /// **DO NOT** block any task for a long time, neither **sync** nor **async**
-    pub fn prepare_route<P, S>(
-        self,
-        prepare: P,
-    ) -> ServerPrepareNestRoute<C, P, Ri, Li, Log, State, Graceful, Decorator>
-    where
-        P: Prepare<C> + 'static,
-        P::Effect: PrepareRouteEffect<S>,
-        Ri: PrepareRouteEffect<S>,
-        S: Clone + Send + 'static + Sync,
-    {
-        let prepares = self.span.in_scope(|| {
-            debug!(
-                mode = "Serial",
-                action = "Add Prepare Route",
-                prepare = core::any::type_name::<P>()
-            );
-            self.prepares.then_route(prepare)
-        });
 
-        ServerPrepare::new(prepares, self.graceful, self.state, self.span)
-    }
     /// adding a [Prepare] adding effect on **State**
     ///
     /// ## Note

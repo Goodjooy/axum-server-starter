@@ -34,6 +34,7 @@ pub trait LoggerInitialization {
 
 /// change the server configure
 #[deprecated(since = "0.9.0", note = "axum current not support edit server")]
+#[allow(dead_code)]
 pub trait ConfigureServerEffect {
     fn effect_server<E>(&self, server: Builder<E>) -> Builder<E> {
         server
