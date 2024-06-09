@@ -6,6 +6,7 @@ use futures::{future::ok, FutureExt, TryFutureExt};
 use tap::Pipe;
 use tower::layer::util::{Identity, Stack};
 
+use crate::prepare_behave::effect_contain::BaseRouter;
 use crate::server_prepare::PrepareDecorator;
 use crate::{
     prepare_behave::{
@@ -63,9 +64,9 @@ type MiddlewareContainerResult<R, L, P, S, C> = ContainerResult<
 >;
 
 type ThenRouterPrepareRet<C, P, R, L, Decorator> =
-    SerialPrepareSet<C, ContainerResult<(<P as Prepare<C>>::Effect, R), L>, Decorator>;
+    SerialPrepareSet<C, ContainerResult<BaseRouter<(<P as Prepare<C>>::Effect, R)>, L>, Decorator>;
 
-impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
+impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<BaseRouter<R>, L>, Decorator>
 where
     C: 'static,
     R: 'static,
@@ -102,7 +103,15 @@ where
             decorator: self.decorator,
         }
     }
+}
 
+impl<C, R, L, Decorator> SerialPrepareSet<C, ContainerResult<R, L>, Decorator>
+where
+    C: 'static,
+    R: 'static,
+    L: 'static,
+    Decorator: PrepareDecorator,
+{
     /// add a [Prepare] into serially executing set
     ///
     /// with the [PrepareStateEffect]
@@ -234,10 +243,28 @@ where
     }
 }
 
-impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<(), Identity>, Decorator> {
+impl<C: 'static, Decorator>
+    SerialPrepareSet<C, ContainerResult<BaseRouter<()>, Identity>, Decorator>
+{
     pub(crate) fn new(configure: Arc<C>, decorator: Decorator) -> Self {
         Self {
             prepare_fut: ok(EffectContainer::new()).boxed_local(),
+            configure,
+            decorator: Arc::new(decorator),
+        }
+    }
+}
+#[cfg(feature = "test-utils")]
+impl<C: 'static, Decorator>
+    SerialPrepareSet<
+        C,
+        ContainerResult<crate::prepare_behave::effect_contain::TestRouter, Identity>,
+        Decorator,
+    >
+{
+    pub(crate) fn new_test(configure: Arc<C>, decorator: Decorator) -> Self {
+        Self {
+            prepare_fut: ok(EffectContainer::new_test()).boxed_local(),
             configure,
             decorator: Arc::new(decorator),
         }
