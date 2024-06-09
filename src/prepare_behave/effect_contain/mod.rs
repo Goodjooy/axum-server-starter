@@ -14,6 +14,7 @@ use super::{
 };
 
 pub struct BaseRouter<R>(pub(crate) R);
+#[cfg(feature="test-utils")]
 pub struct TestRouter;
 
 /// container store the [Prepare] Effects
@@ -46,6 +47,7 @@ impl EffectContainer<BaseRouter<()>, Identity> {
     }
 }
 
+#[cfg(feature="test-utils")]
 impl EffectContainer<TestRouter, Identity> {
     pub(crate) fn new_test() -> Self {
         Self {

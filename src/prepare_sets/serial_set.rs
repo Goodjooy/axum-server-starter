@@ -6,7 +6,7 @@ use futures::{future::ok, FutureExt, TryFutureExt};
 use tap::Pipe;
 use tower::layer::util::{Identity, Stack};
 
-use crate::prepare_behave::effect_contain::{BaseRouter, TestRouter};
+use crate::prepare_behave::effect_contain::BaseRouter;
 use crate::server_prepare::PrepareDecorator;
 use crate::{
     prepare_behave::{
@@ -253,7 +253,8 @@ impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<BaseRouter<()>, 
         }
     }
 }
-impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<TestRouter, Identity>, Decorator> {
+#[cfg(feature="test-utils")]
+impl<C: 'static, Decorator> SerialPrepareSet<C, ContainerResult<crate::prepare_behave::effect_contain::TestRouter, Identity>, Decorator> {
     pub(crate) fn new_test(configure: Arc<C>, decorator: Decorator) -> Self {
         Self {
             prepare_fut: ok(EffectContainer::new_test()).boxed_local(),
