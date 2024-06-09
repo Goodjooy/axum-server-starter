@@ -54,9 +54,8 @@ async fn greet(Path(name): Path<String>) -> String {
 }
 
 #[prepare(GreetRoute)]
-fn greet_route<S, B>() -> impl PrepareRouteEffect<S>
+fn greet_route<S>() -> impl PrepareRouteEffect<S>
 where
-    B: http_body::Body + Send + 'static,
     S: Clone + Send + Sync + 'static,
 {
     Route::new("/greet/:name", get(greet))

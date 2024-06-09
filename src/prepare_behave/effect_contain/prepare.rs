@@ -12,15 +12,15 @@ use futures::TryFutureExt;
 use tap::Pipe;
 use tower::layer::util::Stack;
 
-use super::EffectContainer;
+use super::{BaseRouter, EffectContainer};
 
-impl<R, L> EffectContainer<R, L> {
+impl<R, L> EffectContainer<BaseRouter<R>, L> {
     pub(crate) async fn then_route<D, S, C, P>(
         self,
         prepare: P,
         configure: Arc<C>,
         decorator: Arc<D>,
-    ) -> Result<EffectContainer<(P::Effect, R), L>, PrepareError>
+    ) -> Result<EffectContainer<BaseRouter<(P::Effect, R)>, L>, PrepareError>
     where
         D: PrepareDecorator,
         C: 'static,
@@ -37,7 +37,9 @@ impl<R, L> EffectContainer<R, L> {
                 .await?,
         ))
     }
+}
 
+impl<R, L> EffectContainer<R, L> {
     pub(crate) async fn then_state<D, C, P>(
         self,
         prepare: P,

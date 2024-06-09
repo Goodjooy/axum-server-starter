@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::server_prepare::post_prepare::PostPrepareFn;
 use crate::{prepare_behave::FromStateCollector, ServerPrepare};
+
+use super::post_prepare::PostPrepareFn;
 
 pub struct StateNotReady;
 
